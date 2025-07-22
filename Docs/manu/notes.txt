@@ -1,0 +1,30 @@
+GPT Models [Generative Pre-trained Transformer]
+-------------------
+
+OPEN AI Models avialble - Latest version GPT 4.0 Omini
+-------
+Available Nuget Packages supporting GPT 4
+
+1. OpenAI [paid version] 
+ 	- API 
+		- $2.50 per million input tokens
+		- $10 per million output tokens
+	 - ChatGPT Free Tier 
+		- Free, but limited
+		- around 10 messages every 3 hours
+2. Forge.OpenAI 
+
+Others
+---------
+
+Medical Related,
+	1. PubTator - trained for biomedical and clinical domains 
+	2. AIONER (All-In-One Named Entity Recognizer) [trained for Genes/proteins, Diseases, Chemicals]
+General,
+	3. SpaCy - Industrial-grade NLP with general and domain-specific models
+	4. BERT/RoBERTa - Transformer models for any kind of text
+	5. Flair - Simple and flexible NER[Named Entity Recognition] for multiple domains
+
+
+Old solution - D:\WorkingFolder\Scholarly
+New solution - D:\nxt-3\nxt-backend

@@ -1,0 +1,96 @@
+
+# Core .NET build output
+
+bin/
+obj/
+out/
+[Bb]uild/
+[Ll]og/
+ 
+# User- and tool-specific settings
+ 
+.vscode/
+.vs/
+.idea/
+
+# Rider-specific
+.idea/
+
+# Visual Studio Code settings
+*.code-workspace
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+ 
+# ASP.NET & Entity Framework
+ 
+
+# User secrets (if stored locally)
+secrets.json
+
+# EF Core migrations temp files
+Migrations/
+
+ 
+# Publish profiles and artifacts
+ 
+
+**/Properties/PublishProfiles/
+*.pubxml
+*.publishsettings
+
+# dotnet publish output
+publish/
+*.dbmdl
+
+ # Logs & diagnostics
+*.log
+*.tlog
+*.svclog
+*.vshost.*
+
+ 
+# NuGet packages and cache
+ 
+
+*.nupkg
+*.snupkg
+.nuget/
+packages/
+project.lock.json
+project.fragment.lock.json
+
+# Global NuGet cache (optional)
+# ~/.nuget is user's machine-specific
+
+ 
+# Resharper / Rider
+
+_ReSharper*/
+*.DotSettings.user
+ 
+# OS-specific
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# macOS
+.DS_Store
+
+# Linux
+*~
+ 
+# Other files
+
+*.tmp
+*.bak
+*.orig
+*.swp
+
+# Ignore test result output
+TestResults/

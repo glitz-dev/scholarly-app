@@ -220,7 +220,7 @@ namespace Scholarly.WebAPI.Controllers
                     string fileLength = formval.file.Length.ToString();
                     string rootPath = _env.ContentRootPath; //added for getting hosted location 
                     string fileName = Path.GetFileName(formval.file.FileName);
-                    string configPath = Helper.Common.CreateDownloadFolders(_config.GetSection("AppSettings")["DownloadFolderPath"], _logger); 
+                    string configPath = Helper.Common.CreateDownloadFolders(_config.GetSection("AppSettings")["DownloadFolderPath"], _logger);
                     string uploadedPath = Path.Combine(rootPath, configPath);
                     if (fileName.Substring(fileName.Length - 3, 3) != "pdf")
                     {
@@ -453,60 +453,6 @@ namespace Scholarly.WebAPI.Controllers
             return Ok(pDFs);
         }
 
-
-        private byte[] GetFile(string path)
-        {
-            byte[] numArray;
-            try
-            {
-                if (!System.IO.File.Exists(path))
-                {
-                    numArray = null;
-                }
-                else
-                {
-                    FileStream fileStream = System.IO.File.OpenRead(path);
-                    byte[] numArray1 = new byte[checked((IntPtr)fileStream.Length)];
-                    if ((long)fileStream.Read(numArray1, 0, (int)numArray1.Length) != fileStream.Length)
-                    {
-                        throw new IOException(path);
-                    }
-                    numArray = numArray1;
-                }
-            }
-            catch (Exception exception)
-            {
-                Console.WriteLine(exception);
-                numArray = null;
-            }
-            return numArray;
-        }
-
-        [HttpGet]
-        [Route("getfilepath")]
-        private string GetFilePath(int id)
-        {
-            string? pDFSAVEDPATH = string.Empty;
-            try
-            {
-                if (_swbDBContext.tbl_pdf_uploads.Any(x => x.pdf_uploaded_id == id))
-                {
-                    var result = _swbDBContext.tbl_pdf_uploads.FirstOrDefault(x => x.pdf_uploaded_id == id);
-                    if (result != null && string.IsNullOrWhiteSpace(result.pdf_saved_path))
-                    {
-                        pDFSAVEDPATH = result.ToString();
-                    }
-                }
-
-            }
-            catch (Exception exception)
-            {
-                Console.WriteLine(exception);
-                pDFSAVEDPATH = null;
-            }
-            return pDFSAVEDPATH;
-        }
-
         [HttpGet]
         [Route("getpdfpath")]
         public ActionResult GetPDFPath(int? PathId)
@@ -536,24 +482,37 @@ namespace Scholarly.WebAPI.Controllers
         [Route("getuserdetails")]
         public ActionResult GetUserDetails(string UserId)
         {
-            UserLogin userLogin = new UserLogin();
+            UserLogin? userLogin = new UserLogin();
             try
             {
-                userLogin = (
-                    from x in _swbDBContext.tbl_users
-                    where x.userid.ToString() == UserId
-                    select x into q
-                    select new UserLogin()
+                if (_swbDBContext.tbl_users.Any(p => p.userid.ToString() == UserId))
+                {
+
+                    userLogin = (
+                        from x in _swbDBContext.tbl_users
+                        where x.userid.ToString() == UserId
+                        select x into q
+                        select new UserLogin()
+                        {
+                            University = q.university,
+                            FirstName = q.firstname,
+                            LastName = q.lastname,
+                            SpecialzationId = q.specialization_id,
+                            CurrentPosition = q.current_position,
+                            CurrentLocation = q.current_location,
+                            EmailID = q.emailid,
+                            Specialzation = q.specialization
+                        }).FirstOrDefault<UserLogin>();
+
+                    if (userLogin != null && userLogin.SpecialzationId > 0)
                     {
-                        University = q.university,
-                        FirstName = q.firstname,
-                        LastName = q.lastname,
-                        SpecialzationId = q.specialization_id,
-                        CurrentPosition = q.current_position,
-                        CurrentLocation = q.current_location,
-                        EmailID = q.emailid,
-                        Specialzation = q.specialization
-                    }).FirstOrDefault<UserLogin>();
+                        var result = _swbDBContext.tbl_user_specialization.FirstOrDefault(x => x.specialization_id == userLogin.SpecialzationId);
+                        if (result != null)
+                        {
+                            userLogin.Specialzation = result.specialization;
+                        }
+                    }
+                }
             }
             catch (Exception exception)
             {
@@ -562,6 +521,6 @@ namespace Scholarly.WebAPI.Controllers
             return Ok(userLogin);
         }
     }
-
 }
+
 

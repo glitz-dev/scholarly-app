@@ -1,7 +1,7 @@
 'use client'
 import GroupCard from '@/components/PDF/GroupCard'
 import CreateGroup from '@/components/PDF/GroupCreateForm'
-import { Button } from '@/components/ui/button'
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion'
 import useUserId from '@/hooks/useUserId'
 import { getGroupsByUserId } from '@/store/group-slice'
 import { Loader } from 'lucide-react'
@@ -38,7 +38,16 @@ const GroupList = () => {
           </div>
         ) : (
           <div className='block md:hidden lg:hidden w-full'>
-            <CreateGroup setIsMounting={setIsMounting} listOfGroups={listOfGroups} setListOfGroups={setListOfGroups} />
+            <Accordion type="single"
+              collapsible
+              className="w-full">
+                <AccordionItem value="item-1">
+                  <AccordionTrigger className="hover:no-underline">Create Group</AccordionTrigger>
+                  <AccordionContent className="flex flex-col gap-4 text-balance">
+                    <CreateGroup setIsMounting={setIsMounting} listOfGroups={listOfGroups} setListOfGroups={setListOfGroups} />
+                  </AccordionContent>
+                </AccordionItem>
+            </Accordion>
           </div>
         )}
         <div className='block md:hidden lg:hidden w-full bg-white dark:bg-gray-800 dark:text-white dark:rounded-lg px-0 md:px-3 lg:px-3 py-0'>

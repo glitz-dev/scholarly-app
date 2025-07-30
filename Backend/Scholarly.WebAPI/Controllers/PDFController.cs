@@ -262,9 +262,9 @@ namespace Scholarly.WebAPI.Controllers
                 }
 
             }
-            catch (Exception exception)
+            catch (Exception ex)
             {
-                result = "false";
+                result = ex.Message;
 
             }
             return Ok(result);
@@ -519,6 +519,41 @@ namespace Scholarly.WebAPI.Controllers
                 throw exception;
             }
             return Ok(userLogin);
+        }
+
+        [HttpGet]
+        [Route("getuploadedpdf")]
+        public async Task<IActionResult> DownloadPdf(int uploadId)
+        {
+            try
+            {
+                var result = _swbDBContext.tbl_pdf_uploads.FirstOrDefault(p => p.pdf_uploaded_id == uploadId);
+                if (result != null && !string.IsNullOrEmpty(result.pdf_saved_path))
+                {
+                    string rootPath = _env.ContentRootPath; //added for getting hosted location 
+                    string fullPdfPath = Path.Combine(rootPath, result.pdf_saved_path);
+                    if (!System.IO.File.Exists(fullPdfPath))
+                    {
+                        return NotFound("PDF file not found.");
+                    }
+                    using (var fileStream = new FileStream(fullPdfPath, FileMode.Open, FileAccess.Read))
+                    {
+                        using (var memoryStream = new MemoryStream())
+                        {
+                            await fileStream.CopyToAsync(memoryStream);
+                            var fileBytes = memoryStream.ToArray();
+                            return File(fileBytes, "application/pdf");
+                        }
+                    }
+                }
+                else {
+                    return NotFound("PDF file not found.");
+                }
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"Error reading PDF: {ex.Message}");
+            }
         }
     }
 }

@@ -12,6 +12,7 @@ using System.Net;
 using System.Security.Claims;
 using System.IO;
 
+
 namespace Scholarly.WebAPI.Controllers
 {
     [Route("api/[controller]")]
@@ -148,14 +149,29 @@ namespace Scholarly.WebAPI.Controllers
         }
         [HttpGet]
         [Route("downloadpdf")]
-        public string DownloadPdf(string downloadLink, string storageLink)
+        public async Task<string> DownloadPdf(string downloadLink, string storageLink)
         {
             string str;
             try
             {
-                using (WebClient webClient = new WebClient())
+                //using (WebClient webClient = new WebClient())
+                //{
+                //    webClient.DownloadFile(downloadLink, storageLink);
+                //}
+
+                /*webClient replaced with HttpClient to prevent obsolete  error in .Net 8 */
+
+                using (HttpClient httpClient = new HttpClient())
                 {
-                    webClient.DownloadFile(downloadLink, storageLink);
+                    using (HttpResponseMessage response = await httpClient.GetAsync(downloadLink))
+                    {
+                        response.EnsureSuccessStatusCode(); 
+                        using (var contentStream = await response.Content.ReadAsStreamAsync())
+                        using (var fileStream = new FileStream(storageLink, FileMode.Create, FileAccess.Write, FileShare.None))
+                        {
+                            await contentStream.CopyToAsync(fileStream);
+                        }
+                    }
                 }
                 str = storageLink;
             }
@@ -194,7 +210,7 @@ namespace Scholarly.WebAPI.Controllers
                 {
                     string str3 = Helper.Common.CreateDownloadFolders(_config.GetSection("AppSettings")["DownloadFolderPath"], _logger);
                     string str4 = string.Concat(formval.article, ".pdf");
-                    string str5 = this.DownloadPdf(formval.url, Path.Combine(str3, str4));
+                    string str5 = await this.DownloadPdf(formval.url, Path.Combine(str3, str4));
 
                     var tBLPDFUPLOAD = new tbl_pdf_uploads()
                     {
@@ -272,9 +288,18 @@ namespace Scholarly.WebAPI.Controllers
 
         [HttpGet]
         [Route("getsearchvalues")]
-        public ActionResult getsearchvalues(string searchtext, string loginuserId)
+        public ActionResult getsearchvalues(string searchtext)
         {
-            DbSet<tbl_pdf_uploads> tBLPDFUPLOADS = _swbDBContext.tbl_pdf_uploads;
+            var tBLPDFUPLOADS = new List<tbl_pdf_uploads>();
+            if (searchtext.Length > 0)
+            {
+                var searchKey = searchtext.ToLower();
+                tBLPDFUPLOADS = _swbDBContext.tbl_pdf_uploads.Where(x => x.status == true && (x.article.ToLower().Contains(searchKey) || x.author.Contains(searchKey))).ToList();
+            }
+            else
+            {
+                tBLPDFUPLOADS = _swbDBContext.tbl_pdf_uploads.Where(x => x.status == true).Take(10).ToList();
+            }
             return Ok(tBLPDFUPLOADS);
         }
 
@@ -536,6 +561,12 @@ namespace Scholarly.WebAPI.Controllers
                     {
                         return NotFound("PDF file not found.");
                     }
+
+                    /*Extract summary using Gemini AI Service*/
+                    var geminiService = new GeminiService();
+                    var summarizedData = await geminiService.SummarizeTextAsync(fullPdfPath);
+
+
                     using (var fileStream = new FileStream(fullPdfPath, FileMode.Open, FileAccess.Read))
                     {
                         using (var memoryStream = new MemoryStream())

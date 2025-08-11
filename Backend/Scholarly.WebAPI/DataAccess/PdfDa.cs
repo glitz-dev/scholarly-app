@@ -47,13 +47,10 @@ namespace Scholarly.WebAPI.DataAccess
             bool flag = false;
             try
             {
-                tbl_pdf_uploads? nullable = (
-                     from x in swbDBContext.tbl_pdf_uploads
-                     where x.pdf_uploaded_id == UId
-                     select x).FirstOrDefault();
-                if (nullable != null)
+                tbl_pdf_uploads? selectedFile = swbDBContext.tbl_pdf_uploads.Find(UId); 
+                if (selectedFile != null)
                 {
-                    nullable.status = new bool?(true);
+                    selectedFile.status = false;
                     swbDBContext.SaveChanges();
                     flag = true;
                 }
@@ -69,15 +66,12 @@ namespace Scholarly.WebAPI.DataAccess
             bool flag = false;
             try
             {
-                tbl_groups? nullable = (
-                    from x in swbDBContext.tbl_groups
-                    where x.group_id == GroupId
-                    select x).FirstOrDefault();
-                if (nullable != null)
+                tbl_groups? selectedGroup = swbDBContext.tbl_groups.Find(GroupId); 
+                if (selectedGroup != null)
                 {
-                    nullable.status = new bool?(true);
-                    nullable.updated_by = UserId;
-                    nullable.updated_date = DateTime.UtcNow;
+                    selectedGroup.status = new bool?(true);
+                    selectedGroup.updated_by = UserId;
+                    selectedGroup.updated_date = DateTime.UtcNow;
                     swbDBContext.SaveChanges();
                     flag = true;
                 }

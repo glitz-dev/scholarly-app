@@ -31,6 +31,7 @@
   <ItemGroup>
     <ProjectReference Include="..\Scholarly.DataAccess\Scholarly.DataAccess.csproj" />
     <ProjectReference Include="..\Scholarly.Entity\Scholarly.Entity.csproj" />
+    <ProjectReference Include="C:\Users\GLITZ-2\Downloads\DocumentExtract\ConsoleApp1\Scholarly.Ai.csproj" />
   </ItemGroup>
 
 </Project>

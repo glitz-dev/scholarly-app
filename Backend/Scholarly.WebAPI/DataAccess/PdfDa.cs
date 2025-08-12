@@ -50,6 +50,19 @@ namespace Scholarly.WebAPI.DataAccess
                 tbl_pdf_uploads? selectedFile = swbDBContext.tbl_pdf_uploads.Find(UId); 
                 if (selectedFile != null)
                 {
+                    #region CHECK & DELETE PDF SUMMARY, IF EXISTS
+                    var pdf_summary = swbDBContext.tbl_pdf_summary_list.Where(x => x.status == true && x.pdf_uploaded_id == UId).ToList();
+                    if (pdf_summary.Any())
+                    {
+                        foreach (var x in pdf_summary)
+                        {
+                            x.status = false;
+                            x.modified_date = DateTime.UtcNow;
+                            x.modified_by = UId;
+                        }
+                    }
+                    #endregion
+
                     selectedFile.status = false;
                     swbDBContext.SaveChanges();
                     flag = true;

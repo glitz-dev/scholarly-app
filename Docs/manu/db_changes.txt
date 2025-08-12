@@ -1,0 +1,25 @@
+-- 12 Aug 25
+
+alter table tbl_pdf_uploads add publisher varchar(150);
+alter table tbl_pdf_uploads add copyright_info varchar(500);
+
+
+
+CREATE TABLE public.tbl_pdf_summary_list (
+	pdf_summary_id bigserial NOT NULL,
+	pdf_uploaded_id bigserial NOT NULL,
+	user_id int4 NULL,
+	orignial_version bool NULL,
+	version_no varchar(50) NULL,
+	summary jsonb NULL,
+	active bool NULL,
+	pdf_summary_saved_path varchar(1000) NULL,
+	created_date timestamptz(3) NOT NULL,
+	created_by int4 NOT NULL,
+	is_public bool NULL,
+	status bool NULL,
+	modified_date timestamptz(3) NULL,
+	modified_by int4 NULL,
+	CONSTRAINT tbl_pdf_summary_list_pkey PRIMARY KEY (pdf_summary_id),
+	CONSTRAINT fk_pdf_uploaded_id FOREIGN KEY (pdf_uploaded_id) REFERENCES public.tbl_pdf_uploads(pdf_uploaded_id) ON DELETE CASCADE
+);

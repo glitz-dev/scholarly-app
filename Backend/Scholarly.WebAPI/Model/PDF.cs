@@ -183,5 +183,20 @@ namespace Scholarly.WebAPI.Model
             get;
             set;
         }
+        public string? Publisher
+        {
+            get;
+            set;
+        }
+        public string? Copyright_info
+        {
+            get;
+            set;
+        }
+        public List<PDFSummary> PDFSummary
+        {
+            get;
+            set;
+        }
     }
 }

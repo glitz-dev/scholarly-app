@@ -28,6 +28,16 @@
             get;
             set;
         }
+        public string? publisher
+        {
+            get;
+            set;
+        }
+        public string? copyright_info
+        {
+            get;
+            set;
+        }
         public IFormFile file { get; set; }
     }
 }

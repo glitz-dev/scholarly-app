@@ -11,6 +11,9 @@ using Scholarly.WebAPI.Model;
 using System.Net;
 using System.Security.Claims;
 using System.IO;
+using DocumentFormat.OpenXml.Office.SpreadSheetML.Y2023.DataSourceVersioning;
+using DocumentFormat.OpenXml.Wordprocessing;
+using System.Text.Json;
 
 
 namespace Scholarly.WebAPI.Controllers
@@ -223,6 +226,8 @@ namespace Scholarly.WebAPI.Controllers
                         created_date = DateTime.UtcNow,
                         file_name = formval.author,
                         doi_number = formval.doi,
+                        publisher = formval.publisher,
+                        copyright_info = formval.copyright_info,
                         is_public = new bool?(false),
                         status = true
                     };
@@ -253,6 +258,8 @@ namespace Scholarly.WebAPI.Controllers
                                 System.IO.File.WriteAllBytes(Path.Combine(uploadedPath, fileName), fileContentStream.ToArray());
                             }
 
+                           
+
                             var tBLPDFUPLOAD1 = new tbl_pdf_uploads()
                             {
                                 user_id = _currentContext.UserId.ToString(),
@@ -264,8 +271,36 @@ namespace Scholarly.WebAPI.Controllers
                                 created_by = "1",
                                 created_date = DateTime.UtcNow,
                                 file_name = fileName,
+                                publisher = formval.publisher,
+                                copyright_info = formval.copyright_info,
                                 status = true
                             };
+
+                            #region SUMMARY OF UPLODADED FILE TO - tbl_pdf_summary_list
+
+                            /*Extract summary using Gemini AI Service*/
+                            var geminiService = new GeminiService();
+                            var summarizedData = await geminiService.SummarizeTextAsync(tBLPDFUPLOAD1.pdf_saved_path);
+
+                            var pdf_summary = new tbl_pdf_summary_list()
+                            {
+                                pdf_uploaded_id = tBLPDFUPLOAD1.pdf_uploaded_id,
+                                user_id = _currentContext.UserId,
+                                orignial_version =true,
+                                version_no="v1",
+                                summary= JsonSerializer.Serialize(summarizedData),
+                                active=true,
+                                // pdf_summary_saved_path
+                                created_date = DateTime.UtcNow,
+                                created_by = _currentContext.UserId,
+                                is_public=false,
+                                status=true
+                            };
+                            tBLPDFUPLOAD1.lst_pdf_summary.Add(pdf_summary);
+
+                            #endregion
+
+
                             _swbDBContext.tbl_pdf_uploads.Add(tBLPDFUPLOAD1);
                             _swbDBContext.SaveChanges();
                         }
@@ -334,6 +369,8 @@ namespace Scholarly.WebAPI.Controllers
                         DOINo = P.doi_number,
                         IsAccessed = (P.is_public == (bool?)true ? "Open Access" : "Closed Access"),
                         Author = P.author,
+                        Publisher = P.publisher,
+                        Copyright_info = P.copyright_info,
                         Annotationscount = 10,// P.tbl_pdf_question_tags.Where<tbl_pdf_question_tags>((tbl_pdf_question_tags x) => x.pdf_uploaded_id == (int?)P.pdf_uploaded_id && x.isdeleted != (bool?)true).Count<tbl_pdf_question_tags>(),
                         AnnotatedQuestions = _swbDBContext.tbl_pdf_question_tags.Where<tbl_pdf_question_tags>((tbl_pdf_question_tags x) => x.pdf_uploaded_id == (int?)P.pdf_uploaded_id).Select<tbl_pdf_question_tags, Questions>((tbl_pdf_question_tags q) => new Questions()
                         {
@@ -344,7 +381,15 @@ namespace Scholarly.WebAPI.Controllers
                             Comments = _swbDBContext.tbl_comments.Where<tbl_comments>((tbl_comments x) => x.is_seen != (bool?)true && x.question_id == (int?)q.question_id).Select<tbl_comments, string>((tbl_comments x) => x.comment).FirstOrDefault<string>(),
                             CommentsCount = (int?)_swbDBContext.tbl_comments.Where<tbl_comments>((tbl_comments x) => x.is_seen != (bool?)true && x.question_id == (int?)q.question_id).Select<tbl_comments, string>((tbl_comments x) => x.comment).Count<string>()
                         })
-                        .ToList<Questions>()
+                        .ToList<Questions>(),
+                        PDFSummary = _swbDBContext.tbl_pdf_summary_list.Where(x=>x.pdf_uploaded_id == (int?)P.pdf_uploaded_id).Select<tbl_pdf_summary_list, PDFSummary> ((tbl_pdf_summary_list sum) => new PDFSummary() { 
+                            is_public = sum.is_public,
+                            orignial_version = sum.orignial_version,
+                            pdf_summary_saved_path =sum.pdf_summary_saved_path,
+                            summary = sum.summary,
+                            version_no =sum.version_no
+                        }).ToList<PDFSummary>()
+
                     }).ToList<PDF>();
             }
             catch (Exception exception)

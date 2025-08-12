@@ -9,6 +9,10 @@ namespace Scholarly.Entity
 {
     public class tbl_pdf_uploads
     {
+        public tbl_pdf_uploads()
+        {
+            lst_pdf_summary = new List<tbl_pdf_summary_list>();
+        }
         public string article
         {
             get;
@@ -86,7 +90,22 @@ namespace Scholarly.Entity
             get;
             set;
         }
-        public virtual ICollection<tbl_pdf_question_tags>? tbl_pdf_question_tags
+        public string? publisher
+        {
+            get;
+            set;
+        }
+        public string? copyright_info
+        {
+            get;
+            set;
+        }
+        public virtual ICollection<tbl_pdf_question_tags>? tbl_pdf_question_tags //why define as collection?
+        {
+            get;
+            set;
+        }
+        public virtual IList<tbl_pdf_summary_list>? lst_pdf_summary
         {
             get;
             set;

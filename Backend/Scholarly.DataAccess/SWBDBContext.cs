@@ -51,8 +51,21 @@ namespace Scholarly.DataAccess
             get;
             set;
         }
+        public DbSet<tbl_pdf_summary_list> tbl_pdf_summary_list
+        {
+            get;
+            set;
+        }
         public SWBDBContext(DbContextOptions<SWBDBContext> options) : base(options)
         {
+        }
+        protected override void OnModelCreating(ModelBuilder modelBuilder)
+        {
+            base.OnModelCreating(modelBuilder);
+
+            modelBuilder.Entity<tbl_pdf_summary_list>()
+                        .Property(p => p.summary)
+                        .HasColumnType("jsonb");
         }
     }
 }

@@ -11,8 +11,8 @@ using Scholarly.WebAPI.Model;
 using System.Net;
 using System.Security.Claims;
 using System.IO;
-using DocumentFormat.OpenXml.Office.SpreadSheetML.Y2023.DataSourceVersioning;
-using DocumentFormat.OpenXml.Wordprocessing;
+//using DocumentFormat.OpenXml.Office.SpreadSheetML.Y2023.DataSourceVersioning;
+//using DocumentFormat.OpenXml.Wordprocessing;
 using System.Text.Json;
 
 
@@ -238,6 +238,7 @@ namespace Scholarly.WebAPI.Controllers
                 }
                 else if (formval.file != null && formval.file.Length > 0)
                 {
+                    string AI_Key = _config.GetSection("AppSettings")["Google_API_Key"]!;
                     string fileLength = formval.file.Length.ToString();
                     string rootPath = _env.ContentRootPath; //added for getting hosted location 
                     string fileName = Path.GetFileName(formval.file.FileName);
@@ -280,7 +281,7 @@ namespace Scholarly.WebAPI.Controllers
 
                             /*Extract summary using Gemini AI Service*/
                             var geminiService = new GeminiService();
-                            var summarizedData = await geminiService.SummarizeTextAsync(tBLPDFUPLOAD1.pdf_saved_path);
+                            var summarizedData = await geminiService.SummarizeTextAsync(tBLPDFUPLOAD1.pdf_saved_path, AI_Key);
 
                             var pdf_summary = new tbl_pdf_summary_list()
                             {
@@ -288,7 +289,7 @@ namespace Scholarly.WebAPI.Controllers
                                 user_id = _currentContext.UserId,
                                 orignial_version =true,
                                 version_no="v1",
-                                summary= JsonSerializer.Serialize(summarizedData),
+                                summary=JsonSerializer.Serialize(summarizedData),
                                 active=true,
                                 // pdf_summary_saved_path
                                 created_date = DateTime.UtcNow,
@@ -606,11 +607,6 @@ namespace Scholarly.WebAPI.Controllers
                     {
                         return NotFound("PDF file not found.");
                     }
-
-                    /*Extract summary using Gemini AI Service*/
-                    var geminiService = new GeminiService();
-                    var summarizedData = await geminiService.SummarizeTextAsync(fullPdfPath);
-
 
                     using (var fileStream = new FileStream(fullPdfPath, FileMode.Open, FileAccess.Read))
                     {

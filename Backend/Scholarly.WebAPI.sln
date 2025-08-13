@@ -9,7 +9,7 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Scholarly.Entity", "Scholar
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Scholarly.DataAccess", "Scholarly.DataAccess\Scholarly.DataAccess.csproj", "{9D582DF1-7EDF-4780-976E-15F34BC4CDC6}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Scholarly.Ai", "C:\Users\GLITZ-2\Downloads\DocumentExtract\ConsoleApp1\Scholarly.Ai.csproj", "{1BFCCEC2-9FA4-4B7A-A76C-D68DD13857F4}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Scholarly.Ai", "Scholarly.Ai\Scholarly.Ai.csproj", "{9969AED4-35E1-429A-A207-933F5CE432AC}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -29,10 +29,10 @@ Global
 		{9D582DF1-7EDF-4780-976E-15F34BC4CDC6}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{9D582DF1-7EDF-4780-976E-15F34BC4CDC6}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{9D582DF1-7EDF-4780-976E-15F34BC4CDC6}.Release|Any CPU.Build.0 = Release|Any CPU
-		{1BFCCEC2-9FA4-4B7A-A76C-D68DD13857F4}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{1BFCCEC2-9FA4-4B7A-A76C-D68DD13857F4}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{1BFCCEC2-9FA4-4B7A-A76C-D68DD13857F4}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{1BFCCEC2-9FA4-4B7A-A76C-D68DD13857F4}.Release|Any CPU.Build.0 = Release|Any CPU
+		{9969AED4-35E1-429A-A207-933F5CE432AC}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{9969AED4-35E1-429A-A207-933F5CE432AC}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{9969AED4-35E1-429A-A207-933F5CE432AC}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{9969AED4-35E1-429A-A207-933F5CE432AC}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

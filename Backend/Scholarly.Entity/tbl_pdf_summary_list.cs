@@ -26,7 +26,8 @@ namespace Scholarly.Entity
         public string version_no { get; set; } = "";
         public string summary { get; set; } = "{}";
         public bool? active { get; set; }
-        public string? pdf_summary_saved_path { get; set; } 
+        public string? pdf_summary_saved_path { get; set; }
+        public string? llm_model { get; set;}
         public DateTime created_date { get; set; }
         public int created_by { get; set; }
         public bool? is_public { get; set; }

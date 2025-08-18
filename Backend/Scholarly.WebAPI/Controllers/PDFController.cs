@@ -291,6 +291,7 @@ namespace Scholarly.WebAPI.Controllers
                                 version_no="v1",
                                 summary=JsonSerializer.Serialize(summarizedData),
                                 active=true,
+                                llm_model="Gemini",
                                 // pdf_summary_saved_path
                                 created_date = DateTime.UtcNow,
                                 created_by = _currentContext.UserId,

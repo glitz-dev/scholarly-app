@@ -283,7 +283,6 @@ namespace Scholarly.WebAPI.Controllers
                                 user_id = _currentContext.UserId,
                                 orignial_version = true,
                                 version_no = "v1",
-                                summary = string.Empty,
                                 active = true,
                                 llm_model = "Gemini",
                                 // pdf_summary_saved_path
@@ -309,7 +308,7 @@ namespace Scholarly.WebAPI.Controllers
                                 var record = _swbDBContext.tbl_pdf_summary_list.FirstOrDefault(p => p.pdf_uploaded_id == tBLPDFUPLOAD1.pdf_uploaded_id);
                                 if (record != null)
                                 {
-                                    Task.Run(() =>
+                                    Task.Run(async () =>
                                     {
                                         _GeminiService.SummarizeTextAsync(_logger, tBLPDFUPLOAD1.pdf_saved_path, AI_Key, record.pdf_summary_id);
                                     });

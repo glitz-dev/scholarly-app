@@ -1,4 +1,5 @@
 ﻿
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using NLog;
 using Scholarly.DataAccess;
@@ -58,12 +59,14 @@ public class GeminiService: IGeminiService
                           .GetProperty("parts")[0]
                           .GetProperty("text")
                           .GetString();
-                if (string.IsNullOrWhiteSpace(result))
+                if (!string.IsNullOrWhiteSpace(result))
                 {
                     var summaryRecord = _swbDBContext.tbl_pdf_summary_list.FirstOrDefault(p => p.pdf_summary_id == pdfSummaryId);
                     if (summaryRecord != null)
                     {
                         summaryRecord.summary = JsonSerializer.Serialize(result);
+                        _swbDBContext.Entry(summaryRecord).State = EntityState.Modified;
+                        await _swbDBContext.SaveChangesAsync();
 
                     }
                 }

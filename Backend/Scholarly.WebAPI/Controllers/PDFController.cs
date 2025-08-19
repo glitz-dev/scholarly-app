@@ -1,6 +1,5 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 using NLog;
 using SautinSoft;
 using Scholarly.DataAccess;
@@ -8,12 +7,9 @@ using Scholarly.Entity;
 using Scholarly.WebAPI.DataAccess;
 using Scholarly.WebAPI.Helper;
 using Scholarly.WebAPI.Model;
-using System.Net;
 using System.Security.Claims;
-using System.IO;
 //using DocumentFormat.OpenXml.Office.SpreadSheetML.Y2023.DataSourceVersioning;
 //using DocumentFormat.OpenXml.Wordprocessing;
-using System.Text.Json;
 
 
 namespace Scholarly.WebAPI.Controllers
@@ -27,16 +23,18 @@ namespace Scholarly.WebAPI.Controllers
         private readonly SWBDBContext _swbDBContext;
         private readonly IConfiguration _config;
         private readonly IPDFHelper _PDFHelper;
+        private readonly IGeminiService _GeminiService;
         public CurrentContext _currentContext;
         private readonly IPdfDa _IPdfDa;
         private static Logger _logger = LogManager.GetCurrentClassLogger();
-        public PDFController(IWebHostEnvironment env, IConfiguration configuration, SWBDBContext swbDBContext, IPDFHelper pDFHelper, IPdfDa iPdfDa, IHttpContextAccessor httpContextAccessor)
+        public PDFController(IWebHostEnvironment env, IConfiguration configuration, SWBDBContext swbDBContext, IPDFHelper pDFHelper, IPdfDa iPdfDa, IHttpContextAccessor httpContextAccessor, IGeminiService GeminiService)
         {
             _env = env;
             _config = configuration;
             _swbDBContext = swbDBContext;
             _PDFHelper = pDFHelper;
             _IPdfDa = iPdfDa;
+            _GeminiService = GeminiService;
             _currentContext = Common.GetCurrentContext(httpContextAccessor.HttpContext.User.Identity as ClaimsIdentity);
         }
 
@@ -168,7 +166,7 @@ namespace Scholarly.WebAPI.Controllers
                 {
                     using (HttpResponseMessage response = await httpClient.GetAsync(downloadLink))
                     {
-                        response.EnsureSuccessStatusCode(); 
+                        response.EnsureSuccessStatusCode();
                         using (var contentStream = await response.Content.ReadAsStreamAsync())
                         using (var fileStream = new FileStream(storageLink, FileMode.Create, FileAccess.Write, FileShare.None))
                         {
@@ -259,7 +257,7 @@ namespace Scholarly.WebAPI.Controllers
                                 System.IO.File.WriteAllBytes(Path.Combine(uploadedPath, fileName), fileContentStream.ToArray());
                             }
 
-                           
+
 
                             var tBLPDFUPLOAD1 = new tbl_pdf_uploads()
                             {
@@ -279,32 +277,44 @@ namespace Scholarly.WebAPI.Controllers
 
                             #region SUMMARY OF UPLODADED FILE TO - tbl_pdf_summary_list
 
-                            /*Extract summary using Gemini AI Service*/
-                            var geminiService = new GeminiService();
-                            var summarizedData = await geminiService.SummarizeTextAsync(tBLPDFUPLOAD1.pdf_saved_path, AI_Key);
-
                             var pdf_summary = new tbl_pdf_summary_list()
                             {
                                 pdf_uploaded_id = tBLPDFUPLOAD1.pdf_uploaded_id,
                                 user_id = _currentContext.UserId,
-                                orignial_version =true,
-                                version_no="v1",
-                                summary=JsonSerializer.Serialize(summarizedData),
-                                active=true,
-                                llm_model="Gemini",
+                                orignial_version = true,
+                                version_no = "v1",
+                                summary = string.Empty,
+                                active = true,
+                                llm_model = "Gemini",
                                 // pdf_summary_saved_path
                                 created_date = DateTime.UtcNow,
                                 created_by = _currentContext.UserId,
-                                is_public=false,
-                                status=true
+                                is_public = false,
+                                status = true
                             };
                             tBLPDFUPLOAD1.lst_pdf_summary.Add(pdf_summary);
 
+                            /*Extract summary using Gemini AI Service*/
+                            //var geminiService = new GeminiService();
+                            //var summarizedData = await geminiService.SummarizeTextAsync(tBLPDFUPLOAD1.pdf_saved_path, AI_Key);
                             #endregion
 
 
                             _swbDBContext.tbl_pdf_uploads.Add(tBLPDFUPLOAD1);
                             _swbDBContext.SaveChanges();
+
+
+                            if (tBLPDFUPLOAD1.pdf_uploaded_id > 0)
+                            {
+                                var record = _swbDBContext.tbl_pdf_summary_list.FirstOrDefault(p => p.pdf_uploaded_id == tBLPDFUPLOAD1.pdf_uploaded_id);
+                                if (record != null)
+                                {
+                                    Task.Run(() =>
+                                    {
+                                        _GeminiService.SummarizeTextAsync(_logger, tBLPDFUPLOAD1.pdf_saved_path, AI_Key, record.pdf_summary_id);
+                                    });
+                                }
+                            }
                         }
                         else
                         {
@@ -384,12 +394,13 @@ namespace Scholarly.WebAPI.Controllers
                             CommentsCount = (int?)_swbDBContext.tbl_comments.Where<tbl_comments>((tbl_comments x) => x.is_seen != (bool?)true && x.question_id == (int?)q.question_id).Select<tbl_comments, string>((tbl_comments x) => x.comment).Count<string>()
                         })
                         .ToList<Questions>(),
-                        PDFSummary = _swbDBContext.tbl_pdf_summary_list.Where(x=>x.pdf_uploaded_id == (int?)P.pdf_uploaded_id).Select<tbl_pdf_summary_list, PDFSummary> ((tbl_pdf_summary_list sum) => new PDFSummary() { 
+                        PDFSummary = _swbDBContext.tbl_pdf_summary_list.Where(x => x.pdf_uploaded_id == (int?)P.pdf_uploaded_id).Select<tbl_pdf_summary_list, PDFSummary>((tbl_pdf_summary_list sum) => new PDFSummary()
+                        {
                             is_public = sum.is_public,
                             orignial_version = sum.orignial_version,
-                            pdf_summary_saved_path =sum.pdf_summary_saved_path,
+                            pdf_summary_saved_path = sum.pdf_summary_saved_path,
                             summary = sum.summary,
-                            version_no =sum.version_no
+                            version_no = sum.version_no
                         }).ToList<PDFSummary>()
 
                     }).ToList<PDF>();
@@ -619,7 +630,8 @@ namespace Scholarly.WebAPI.Controllers
                         }
                     }
                 }
-                else {
+                else
+                {
                     return NotFound("PDF file not found.");
                 }
             }

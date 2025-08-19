@@ -1,17 +1,26 @@
 ﻿
+using Microsoft.Extensions.Logging;
+using NLog;
+using Scholarly.DataAccess;
 using System.Text;
 using System.Text.Json;
 
-public class GeminiService
+public interface IGeminiService
+{
+    Task SummarizeTextAsync(Logger logger, string pdfPath, string apiKey,int pdfSummaryId);
+}
+public class GeminiService: IGeminiService
 {
     private readonly HttpClient _httpClient;
-
-    public GeminiService()
+    private readonly SWBDBContext _swbDBContext;
+    private static Logger _logger;
+    public GeminiService(SWBDBContext swbDBContext)
     {
+        _swbDBContext = swbDBContext;
         _httpClient = new HttpClient();
     }
 
-    public async Task<string> SummarizeTextAsync(string pdfPath, string apiKey)
+    public async Task SummarizeTextAsync(Logger logger, string pdfPath, string apiKey, int pdfSummaryId)
     {
         string extractedText;
         using (FileStream stream = new FileStream(pdfPath, FileMode.Open, FileAccess.Read))
@@ -19,11 +28,7 @@ public class GeminiService
             try
             {
                 extractedText = FileProcessor.ExtractTextFromPdf(stream);
-            }
-            catch (Exception ex)
-            {
-                return string.Empty;
-            }
+            
             var endpoint = $"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={apiKey}";
 
             var requestBody = new
@@ -47,12 +52,26 @@ public class GeminiService
             var responseContent = await response.Content.ReadAsStringAsync();
 
             using var jsonDoc = JsonDocument.Parse(responseContent);
-            return jsonDoc.RootElement
+            string result = jsonDoc.RootElement
                           .GetProperty("candidates")[0]
                           .GetProperty("content")
                           .GetProperty("parts")[0]
                           .GetProperty("text")
                           .GetString();
+                if (string.IsNullOrWhiteSpace(result))
+                {
+                    var summaryRecord = _swbDBContext.tbl_pdf_summary_list.FirstOrDefault(p => p.pdf_summary_id == pdfSummaryId);
+                    if (summaryRecord != null)
+                    {
+                        summaryRecord.summary = JsonSerializer.Serialize(result);
+
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                logger.Error (ex);
+            }
         }
     }
 }

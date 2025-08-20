@@ -1,27 +1,27 @@
 ﻿
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using Newtonsoft.Json;
 using NLog;
+using Npgsql;
 using Scholarly.DataAccess;
 using System.Text;
 using System.Text.Json;
 
 public interface IGeminiService
 {
-    Task SummarizeTextAsync(Logger logger, string pdfPath, string apiKey,int pdfSummaryId);
+    Task SummarizeTextAsync(Logger logger, string _connectionStrings, string pdfPath, string apiKey, int pdfSummaryId);
 }
-public class GeminiService: IGeminiService
+public class GeminiService : IGeminiService
 {
     private readonly HttpClient _httpClient;
-    private readonly SWBDBContext _swbDBContext;
     private static Logger _logger;
     public GeminiService(SWBDBContext swbDBContext)
     {
-        _swbDBContext = swbDBContext;
         _httpClient = new HttpClient();
     }
 
-    public async Task SummarizeTextAsync(Logger logger, string pdfPath, string apiKey, int pdfSummaryId)
+    public async Task SummarizeTextAsync(Logger logger, string _connectionStrings, string pdfPath, string apiKey, int pdfSummaryId)
     {
         string extractedText;
         using (FileStream stream = new FileStream(pdfPath, FileMode.Open, FileAccess.Read))
@@ -29,51 +29,52 @@ public class GeminiService: IGeminiService
             try
             {
                 extractedText = FileProcessor.ExtractTextFromPdf(stream);
-            
-            var endpoint = $"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={apiKey}";
 
-            var requestBody = new
-            {
-                contents = new[]
+                var endpoint = $"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={apiKey}";
+
+                var requestBody = new
                 {
-                new
-                {
-                    parts = new[]
+                    contents = new[]
                     {
-                        new { text = "Summarized Details:\n" + extractedText }
+                        new
+                        {
+                            parts = new[]
+                            {
+                                new { text = "Summarized Details:\n" + extractedText }
+                            }
+                        }
                     }
-                }
-            }
-            };
+                };
 
-            var content = new StringContent(JsonSerializer.Serialize(requestBody), Encoding.UTF8, "application/json");
-            var response = await _httpClient.PostAsync(endpoint, content);
-            response.EnsureSuccessStatusCode();
+                var content = new StringContent(System.Text.Json.JsonSerializer.Serialize(requestBody), Encoding.UTF8, "application/json");
+                var response = await _httpClient.PostAsync(endpoint, content);
+                response.EnsureSuccessStatusCode();
 
-            var responseContent = await response.Content.ReadAsStringAsync();
+                var responseContent = await response.Content.ReadAsStringAsync();
 
-            using var jsonDoc = JsonDocument.Parse(responseContent);
-            string result = jsonDoc.RootElement
-                          .GetProperty("candidates")[0]
-                          .GetProperty("content")
-                          .GetProperty("parts")[0]
-                          .GetProperty("text")
-                          .GetString();
+                using var jsonDoc = JsonDocument.Parse(responseContent);
+                string result = jsonDoc.RootElement
+                              .GetProperty("candidates")[0]
+                              .GetProperty("content")
+                              .GetProperty("parts")[0]
+                              .GetProperty("text")
+                              .GetString();
                 if (!string.IsNullOrWhiteSpace(result))
                 {
-                    var summaryRecord = _swbDBContext.tbl_pdf_summary_list.FirstOrDefault(p => p.pdf_summary_id == pdfSummaryId);
-                    if (summaryRecord != null)
+                    var sql = "UPDATE tbl_pdf_summary_list SET summary = @summary WHERE pdf_summary_id = @id;";
+                    using var conn = new NpgsqlConnection(_connectionStrings);
                     {
-                        summaryRecord.summary = JsonSerializer.Serialize(result);
-                        _swbDBContext.Entry(summaryRecord).State = EntityState.Modified;
-                        await _swbDBContext.SaveChangesAsync();
-
+                        conn.Open();
+                        using var cmd = new NpgsqlCommand(sql, conn);
+                        cmd.Parameters.AddWithValue("summary", NpgsqlTypes.NpgsqlDbType.Jsonb, JsonConvert.SerializeObject(result));
+                        cmd.Parameters.AddWithValue("id", pdfSummaryId);
+                        cmd.ExecuteNonQuery();
                     }
                 }
             }
             catch (Exception ex)
             {
-                logger.Error (ex);
+                logger.Error(ex);
             }
         }
     }

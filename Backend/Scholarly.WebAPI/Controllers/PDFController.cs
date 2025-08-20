@@ -1,4 +1,5 @@
 ﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 using NLog;
 using SautinSoft;
@@ -24,6 +25,7 @@ namespace Scholarly.WebAPI.Controllers
         private readonly IConfiguration _config;
         private readonly IPDFHelper _PDFHelper;
         private readonly IGeminiService _GeminiService;
+        private readonly string _ConnectionStrings;
         public CurrentContext _currentContext;
         private readonly IPdfDa _IPdfDa;
         private static Logger _logger = LogManager.GetCurrentClassLogger();
@@ -36,6 +38,7 @@ namespace Scholarly.WebAPI.Controllers
             _IPdfDa = iPdfDa;
             _GeminiService = GeminiService;
             _currentContext = Common.GetCurrentContext(httpContextAccessor.HttpContext.User.Identity as ClaimsIdentity);
+            _ConnectionStrings =Convert.ToString(configuration["ConnectionStrings:DefaultConnection"]);
         }
 
         [HttpPost]
@@ -310,7 +313,7 @@ namespace Scholarly.WebAPI.Controllers
                                 {
                                     Task.Run(async () =>
                                     {
-                                        _GeminiService.SummarizeTextAsync(_logger, tBLPDFUPLOAD1.pdf_saved_path, AI_Key, record.pdf_summary_id);
+                                        _GeminiService.SummarizeTextAsync(_logger, _ConnectionStrings,tBLPDFUPLOAD1.pdf_saved_path, AI_Key, record.pdf_summary_id);
                                     });
                                 }
                             }

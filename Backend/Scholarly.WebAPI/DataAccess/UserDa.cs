@@ -11,7 +11,7 @@ namespace Scholarly.WebAPI.DataAccess
         Task<tbl_users> Registration(SWBDBContext swbDBContext, User user);
         Task<string> ConfirmEmail(SWBDBContext swbDBContext, string token, string email);
         Task<bool> SaveUserDetails(SWBDBContext swbDBContext, string UserId, int? SpecilizationId, string University, string CurrentPosition, string CurrentLocation, string firstname, string Lastname);
-        Task<PDF?> GetCounts(SWBDBContext swbDBContext);
+        Task<TotalCounts?> GetCounts(SWBDBContext swbDBContext);
         Task<List<UserLogin>?> GetSpecializations(SWBDBContext swbDBContext);
         Task<UserLogin?> GetUserDetails(SWBDBContext swbDBContext, string UserId);
     }
@@ -71,20 +71,20 @@ namespace Scholarly.WebAPI.DataAccess
             return false;
         }
 
-        public async Task<PDF?> GetCounts(SWBDBContext swbDBContext)
+        public async Task<TotalCounts?> GetCounts(SWBDBContext swbDBContext)
         {
-            PDF? pDF =await (
-                              from x in swbDBContext.tbl_pdf_uploads
-                              where x.status != (bool?)true
-                              select x into p
-                              select new PDF()
-                              {
-                                  UserCount = swbDBContext.tbl_users.Where<tbl_users>((tbl_users x) => x.emailid != null).Select<tbl_users, int>((tbl_users x) => x.userid).Count<int>(),
-                                  AnnotationCount = swbDBContext.tbl_pdf_question_tags.Where<tbl_pdf_question_tags>((tbl_pdf_question_tags x) => x.isdeleted != (bool?)true).Count<tbl_pdf_question_tags>(),
-                                  ArticleCount = swbDBContext.tbl_pdf_uploads.Where<tbl_pdf_uploads>((tbl_pdf_uploads x) => x.status != (bool?)true).Count<tbl_pdf_uploads>(),
-                                  GroupsCount = swbDBContext.tbl_groups.Where<tbl_groups>((tbl_groups c) => c.group_name != null && c.group_name != "" && c.status != (bool?)true).Count<tbl_groups>()
-                              }).FirstOrDefaultAsync<PDF>();
-            return pDF;
+            int userCounts = swbDBContext.tbl_users.Where(x => x.emailid != null).Count();
+            int annotationCount = swbDBContext.tbl_pdf_question_tags.Where(x => !(bool)x.is_deleted).Count();
+            int articleCount = swbDBContext.tbl_pdf_uploads.Count(x => (bool)x.status);
+            int groupsCount = swbDBContext.tbl_groups.Count(x => !string.IsNullOrWhiteSpace(x.group_name) && (bool)x.status);
+             
+            TotalCounts totalCounts = new TotalCounts() { 
+                UserCount = userCounts,
+                AnnotationCount = annotationCount,
+                ArticleCount = articleCount,
+                GroupsCount=groupsCount
+            };
+            return totalCounts;
         }
 
         public async Task<List<UserLogin>?> GetSpecializations(SWBDBContext swbDBContext)

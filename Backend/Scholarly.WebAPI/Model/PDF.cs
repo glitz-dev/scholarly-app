@@ -10,11 +10,11 @@ namespace Scholarly.WebAPI.Model
             set;
         }
 
-        public int? AnnotationCount
-        {
-            get;
-            set;
-        }
+        //public int? AnnotationCount
+        //{
+        //    get;
+        //    set;
+        //}
 
         public int Annotationscount
         {
@@ -46,11 +46,11 @@ namespace Scholarly.WebAPI.Model
             set;
         }
 
-        public int? ArticleCount
-        {
-            get;
-            set;
-        }
+        //public int? ArticleCount
+        //{
+        //    get;
+        //    set;
+        //}
 
         public string Author
         {
@@ -100,11 +100,11 @@ namespace Scholarly.WebAPI.Model
             set;
         }
 
-        public int? GroupsCount
-        {
-            get;
-            set;
-        }
+        //public int? GroupsCount
+        //{
+        //    get;
+        //    set;
+        //}
 
         public string IsAccessed
         {
@@ -172,11 +172,11 @@ namespace Scholarly.WebAPI.Model
             set;
         }
 
-        public int? UserCount
-        {
-            get;
-            set;
-        }
+        //public int? UserCount
+        //{
+        //    get;
+        //    set;
+        //}
 
         public string UserId
         {

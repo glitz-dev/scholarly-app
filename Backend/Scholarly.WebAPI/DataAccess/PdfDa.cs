@@ -31,7 +31,7 @@ namespace Scholarly.WebAPI.DataAccess
                 tbl_pdf_question_tags? result = swbDBContext.tbl_pdf_question_tags.FirstOrDefault(x => x.question_id == QID);
                 if (result != null)
                 {
-                    result.isdeleted = new bool?(true);
+                    result.is_deleted = true;
                     swbDBContext.SaveChanges();
                     flag = true;
                 }

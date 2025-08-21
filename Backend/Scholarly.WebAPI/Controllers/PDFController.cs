@@ -385,7 +385,7 @@ namespace Scholarly.WebAPI.Controllers
                         Author = P.author,
                         Publisher = P.publisher,
                         Copyright_info = P.copyright_info,
-                        Annotationscount = 10,// P.tbl_pdf_question_tags.Where<tbl_pdf_question_tags>((tbl_pdf_question_tags x) => x.pdf_uploaded_id == (int?)P.pdf_uploaded_id && x.isdeleted != (bool?)true).Count<tbl_pdf_question_tags>(),
+                        Annotationscount = 9, //P.tbl_pdf_question_tags.Where(x => x.pdf_uploaded_id == (int?)P.pdf_uploaded_id && !(bool)x.is_deleted).Count(),
                         AnnotatedQuestions = _swbDBContext.tbl_pdf_question_tags.Where<tbl_pdf_question_tags>((tbl_pdf_question_tags x) => x.pdf_uploaded_id == (int?)P.pdf_uploaded_id).Select<tbl_pdf_question_tags, Questions>((tbl_pdf_question_tags q) => new Questions()
                         {
                             Question = q.question,
@@ -458,7 +458,7 @@ namespace Scholarly.WebAPI.Controllers
             {
                 pDFs = (
                     from q in _swbDBContext.tbl_pdf_question_tags
-                    where q.isdeleted != (bool?)true && q.pdf_uploaded_id == (int?)PID
+                    where !(bool)q.is_deleted && q.pdf_uploaded_id == (int?)PID
                     orderby q.user_id
                     select new PDF()
                     {

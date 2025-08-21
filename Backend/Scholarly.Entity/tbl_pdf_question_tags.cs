@@ -27,7 +27,7 @@ namespace Scholarly.Entity
             set;
         }
 
-        public bool? isdeleted
+        public bool? is_deleted
         {
             get;
             set;

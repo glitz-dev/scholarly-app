@@ -68,7 +68,7 @@ export const deletePdf = createAsyncThunk('/pdf/deletepdf', async ({ userId, id,
 
 export const searchPdf = createAsyncThunk('/pdf/searchPdf', async ({ keyword, userId, authToken }, { rejectWithValue }) => {
     try {
-        const response = await axios.get(`/api/mock/PDF/searchCollection?userId=${userId}&keyword=${keyword}`, {
+        const response = await axios.get(`/api/PDF/getsearchvalues?loginuserId=${userId}&searchtext=${keyword}`, {
             headers: {
                 Authorization: `Bearer ${authToken}`
             }
@@ -124,7 +124,6 @@ const collectionSlice = createSlice({
             state.isLoading = true
         }).addCase(searchPdf.fulfilled, (state, action) => {
             state.isLoading = false;
-            state.collectionList = action.payload;
             state.error = null;
         }).addCase(searchPdf.rejected, (state, action) => {
             state.isLoading = false;

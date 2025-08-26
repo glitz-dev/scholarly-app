@@ -7,6 +7,14 @@ export default {
     "./components/**/*.{js,ts,jsx,tsx,mdx}",
     "./app/**/*.{js,ts,jsx,tsx,mdx}",
   ],
+  safelist: [
+    "bg-red-100",
+    "dark:bg-red-900/20",
+    "bg-amber-50",
+    "dark:bg-amber-900/20",
+    "bg-blue-50",
+    "dark:bg-blue-900/20"
+  ],
   theme: {
   	extend: {
   		fontFamily: {

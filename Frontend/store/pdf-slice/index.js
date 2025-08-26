@@ -4,7 +4,8 @@ import { createAsyncThunk, createSlice } from "@reduxjs/toolkit";
 const initialState = {
     isLoading: false,
     collectionList: [],
-    error: null
+    error: null,
+    selectedPdf: null // Add selectedPdf to store the fetched PDF data
 }
 
 export const saveFile = createAsyncThunk('/pdf/savefile', async ({ formData, authToken }, { rejectWithValue }) => {
@@ -32,7 +33,6 @@ export const getCollections = createAsyncThunk('/pdf/getcollections', async ({au
                 Authorization: `Bearer ${authToken}`
             }
         })
-        console.log('...response', response)
         return response?.data;
     } catch (error) {
         return rejectWithValue(error.response?.data?.message || 'Can not fetch files');
@@ -51,14 +51,14 @@ export const editPdf = createAsyncThunk('/pdf/editpdf', async ({ id, article, pu
     } catch (error) {
         return rejectWithValue(error.response?.data?.message || 'Can not edit file')
     }
-})
+})                   
 
-export const deletePdf = createAsyncThunk('/pdf/deletepdf', async ({ userId, id, authToken }, { rejectWithValue }) => {
+export const deletePdf = createAsyncThunk('/pdf/deletepdf', async ({ pdfUploadedId, authToken }, { rejectWithValue }) => {
     try {
-        const response = await axios.delete(`/api/mock/PDF/deleteCollection?userId=${userId}&id=${id}`, {
+        const response = await axios.post(`/api/PDF/deletepdf?UId=${pdfUploadedId}`,{}, {
             headers: {
                 Authorization: `Bearer ${authToken}`
-            }
+            }        
         });
         return response?.data;
     } catch (error) {
@@ -66,9 +66,9 @@ export const deletePdf = createAsyncThunk('/pdf/deletepdf', async ({ userId, id,
     }
 })
 
-export const searchPdf = createAsyncThunk('/pdf/searchPdf', async ({ keyword, userId, authToken }, { rejectWithValue }) => {
+export const searchPdf = createAsyncThunk('/pdf/searchPdf', async ({ keyword, authToken }, { rejectWithValue }) => {
     try {
-        const response = await axios.get(`/api/PDF/getsearchvalues?loginuserId=${userId}&searchtext=${keyword}`, {
+        const response = await axios.get(`/api/PDF/getsearchvalues?searchtext=${keyword}`, {
             headers: {
                 Authorization: `Bearer ${authToken}`
             }
@@ -79,57 +79,101 @@ export const searchPdf = createAsyncThunk('/pdf/searchPdf', async ({ keyword, us
     }
 })
 
-
+export const getUploadedPdf = createAsyncThunk('/pdf/getUploadedPdf', async ({ uploadId, authToken }, { rejectWithValue }) => {
+    try {
+        const response = await axios.get(`/api/PDF/getuploadedpdf?uploadId=${uploadId}`, {
+            headers: {
+                Authorization: `Bearer ${authToken}`
+            },
+            responseType: 'blob'
+        });
+        return response?.data;
+    } catch (error) {
+        return rejectWithValue(error.response?.data?.message || 'Can not fetch PDF');
+    }
+})
 
 const collectionSlice = createSlice({
     name: 'collection',
     initialState,
-    reducers: {},
+    reducers: {
+        clearSelectedPdf: (state) => {
+            state.selectedPdf = null;
+        }
+    },
     extraReducers: (builder) => {
-        builder.addCase(saveFile.pending, (state) => {
-            state.isLoading = true
-        }).addCase(saveFile.fulfilled, (state, action) => {
-            state.isLoading = false;
-            state.error = null;
-        }).addCase(saveFile.rejected, (state, action) => {
-            state.isLoading = false;
-            state.error = action.payload;
-        }).addCase(getCollections.pending, (state) => {
-            state.isLoading = true;
-        }).addCase(getCollections.fulfilled, (state, action) => {
-            state.isLoading = false;
-            state.collectionList = action.payload;
-            state.error = null;
-        }).addCase(getCollections.rejected, (state, action) => {
-            state.isLoading = false;
-            state.error = action.payload;
-        }).addCase(editPdf.pending, (state) => {
-            state.isLoading = true;
-        }).addCase(editPdf.fulfilled, (state, action) => {
-            state.isLoading = false;
-            state.collectionList = action.payload;
-            state.error = null
-        }).addCase(editPdf.rejected, (state, action) => {
-            state.isLoading = false;
-            state.error = action?.payload
-        }).addCase(deletePdf.pending, (state, action) => {
-            state.isLoading = true;
-        }).addCase(deletePdf.fulfilled, (state) => {
-            state.isLoading = false;
-            state.error = null;
-        }).addCase(deletePdf.rejected, (state, action) => {
-            state.isLoading = false;
-            state.error = action.payload
-        }).addCase(searchPdf.pending, (state) => {
-            state.isLoading = true
-        }).addCase(searchPdf.fulfilled, (state, action) => {
-            state.isLoading = false;
-            state.error = null;
-        }).addCase(searchPdf.rejected, (state, action) => {
-            state.isLoading = false;
-            state.error = action?.payload;
-        })
+        builder
+            .addCase(saveFile.pending, (state) => {
+                state.isLoading = true
+            })
+            .addCase(saveFile.fulfilled, (state, action) => {
+                state.isLoading = false;
+                state.error = null;
+            })
+            .addCase(saveFile.rejected, (state, action) => {
+                state.isLoading = false;
+                state.error = action.payload;
+            })
+            .addCase(getCollections.pending, (state) => {
+                state.isLoading = true;
+            })
+            .addCase(getCollections.fulfilled, (state, action) => {
+                state.isLoading = false;
+                state.collectionList = action.payload;
+                state.error = null;
+            })
+            .addCase(getCollections.rejected, (state, action) => {
+                state.isLoading = false;
+                state.error = action.payload;
+            })
+            .addCase(editPdf.pending, (state) => {
+                state.isLoading = true;
+            })
+            .addCase(editPdf.fulfilled, (state, action) => {
+                state.isLoading = false;
+                state.collectionList = action.payload;
+                state.error = null
+            })
+            .addCase(editPdf.rejected, (state, action) => {
+                state.isLoading = false;
+                state.error = action?.payload
+            })
+            .addCase(deletePdf.pending, (state) => {
+                state.isLoading = true;
+            })
+            .addCase(deletePdf.fulfilled, (state) => {
+                state.isLoading = false;
+                state.error = null;
+            })
+            .addCase(deletePdf.rejected, (state, action) => {
+                state.isLoading = false;
+                state.error = action.payload
+            })
+            .addCase(searchPdf.pending, (state) => {
+                state.isLoading = true
+            })
+            .addCase(searchPdf.fulfilled, (state, action) => {
+                state.isLoading = false;
+                state.error = null;
+            })
+            .addCase(searchPdf.rejected, (state, action) => {
+                state.isLoading = false;
+                state.error = action?.payload;
+            })
+            .addCase(getUploadedPdf.pending, (state) => {
+                state.isLoading = true;
+            })
+            .addCase(getUploadedPdf.fulfilled, (state, action) => {
+                state.isLoading = false;
+                state.selectedPdf = action.payload;
+                state.error = null;
+            })
+            .addCase(getUploadedPdf.rejected, (state, action) => {
+                state.isLoading = false;
+                state.error = action.payload;
+            })
     }
 })
 
+export const { clearSelectedPdf } = collectionSlice.actions;
 export default collectionSlice.reducer;

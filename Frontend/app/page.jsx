@@ -5,10 +5,12 @@ import Navbar from "@/components/Navbar";
 import SummaryStats from "@/components/SummaryStats";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { MessageSquare, Sparkles, Users, Brain, Target, Heart } from "lucide-react";
 import Image from "next/image";
+import { useDispatch, useSelector } from "react-redux";
+import { getDetailsCount } from "@/store/user-slice";
 
 // Enhanced animation variants
 const sectionVariants = {
@@ -44,6 +46,24 @@ const buttonVariants = {
 
 export default function Home() {
   const [openFeedbackDialogue, setOpenFeedbackDialogue] = useState(false);
+  const dispatch = useDispatch()
+  const { detailsCount } = useSelector((state) => state.userprofile)
+
+  const getCount = async () => {
+    try {
+      const result = await dispatch(getDetailsCount());
+    } catch (error) {
+      showToast({
+        title: "Error fetching details count",
+        description: error?.message || "Please try again later.",
+        variant: "error",
+      });
+    }
+  }
+
+  useEffect(() => {
+    getCount();
+  }, []);
 
   return (
     <>
@@ -82,24 +102,24 @@ export default function Home() {
           {/* decorative elements */}
           <motion.div
             className="absolute top-20 left-10 text-purple-400/30"
-            // animate={{ y: [0, -15, 0] }}
-            // transition={{ repeat: Infinity, duration: 4, ease: "easeInOut" }}
+          // animate={{ y: [0, -15, 0] }}
+          // transition={{ repeat: Infinity, duration: 4, ease: "easeInOut" }}
           >
             <Sparkles className="w-8 h-8" />
           </motion.div>
 
           <motion.div
             className="absolute top-40 right-20 text-indigo-400/30"
-            // animate={{ rotate: [0, 15, -15, 0] }}
-            // transition={{ repeat: Infinity, duration: 6, ease: "easeInOut" }}
+          // animate={{ rotate: [0, 15, -15, 0] }}
+          // transition={{ repeat: Infinity, duration: 6, ease: "easeInOut" }}
           >
             <Brain className="w-6 h-6" />
           </motion.div>
 
           <motion.div
             className="absolute bottom-40 left-20 text-pink-400/30"
-            // animate={{ scale: [1, 1.2, 1] }}
-            // transition={{ repeat: Infinity, duration: 5, ease: "easeInOut" }}
+          // animate={{ scale: [1, 1.2, 1] }}
+          // transition={{ repeat: Infinity, duration: 5, ease: "easeInOut" }}
           >
             <Target className="w-10 h-10" />
           </motion.div>
@@ -302,7 +322,7 @@ export default function Home() {
           viewport={{ once: true }}
           variants={sectionVariants}
         >
-          <SummaryStats />
+          <SummaryStats detailsCount={detailsCount} />
         </motion.div>
 
         {/* Footer */}

@@ -140,3 +140,9 @@
   background-color: var(--selected-color);
   color: black;
 }
+
+.quill-justify .ql-editor {
+  text-align: justify;
+  text-justify: inter-word; 
+  line-height: 1.6; 
+}

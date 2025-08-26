@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Download, Edit, Globe, Loader2, Trash, FileText, User, Hash, Link, MessageCircle, Eye, Calendar, ExternalLink, BookOpen, Save, X, Edit3 } from 'lucide-react';
+import { formatDistanceToNow } from "date-fns";
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -21,6 +22,7 @@ const PdfCard = ({
   pubmedId,
   publisher,
   copyright,
+  dateCreated,
   summary,
   showActions,
   handleDeleteCollection
@@ -40,11 +42,11 @@ const PdfCard = ({
 
   // Initialize edited summary when component mounts or summary changes
   React.useEffect(() => {
-  if (!isEditing) {
-    setEditedSummary(alteredSummaryHtml);
-  }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-}, []);
+    if (!isEditing) {
+      setEditedSummary(alteredSummaryHtml);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handlePdfClick = async () => {
     try {
@@ -96,24 +98,29 @@ const PdfCard = ({
         <div className="p-6">
           <div className="flex items-start mb-1 min-w-full">
             <div className="flex-1 w-full">
-              <div className="flex items-center gap-3 mb-3">
-                <div className="p-2 bg-gray-100 dark:bg-gray-800 rounded-md">
-                  <FileText size={20} className="text-gray-600 dark:text-gray-400" />
+              <div className="flex justify-between items-center gap-3 mb-3">
+                <div className="flex flex-row gap-3">
+                  <div className="p-2 bg-gray-100 dark:bg-gray-800 rounded-md">
+                    <FileText size={20} className="text-gray-600 dark:text-gray-400" />
+                  </div>
+                  <Badge
+                    variant={openAccess ? "default" : "secondary"}
+                    className={`text-xs font-medium ${openAccess
+                      ? "bg-emerald-100 text-emerald-800 border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-300"
+                      : "bg-gray-100 text-gray-700 border-gray-200 dark:bg-gray-800 dark:text-gray-300"
+                      }`}
+                  >
+                    {openAccess ? 'Open Access' : 'Restricted'}
+                  </Badge>
                 </div>
-                <Badge
-                  variant={openAccess ? "default" : "secondary"}
-                  className={`text-xs font-medium ${openAccess
-                    ? "bg-emerald-100 text-emerald-800 border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-300"
-                    : "bg-gray-100 text-gray-700 border-gray-200 dark:bg-gray-800 dark:text-gray-300"
-                    }`}
-                >
-                  {openAccess ? 'Open Access' : 'Restricted'}
-                </Badge>
+                <div className='text-gray-500 dark:text-gray-300 text-xs'>
+                  <span>{formatDistanceToNow(new Date(dateCreated), { addSuffix: true })}</span>
+                </div>
               </div>
 
               <h2
                 onClick={handlePdfClick}
-               className="text-base md:text-xl font-semibold text-gray-900 dark:text-white leading-tight cursor-pointer 
+                className="text-base md:text-xl font-semibold text-gray-900 dark:text-white leading-tight cursor-pointer 
              hover:text-blue-600 dark:hover:text-blue-400 transition-colors duration-200 mb-1 truncate"
               >
                 {article}
@@ -346,8 +353,8 @@ const PdfCard = ({
                                       size="sm"
                                       className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700"
                                     >
-                                      <Save className="hidden md:block h-4 w-4" />
-                                      <span>Save</span> <span className='hidden md:block'>Changes</span>
+                                      <Save className="hidden md:block h-4 w-4 dark:text-white" />
+                                      <span className="dark:text-white">Save</span> <span className='hidden md:block dark:text-white'>Changes</span>
                                     </Button>
                                   </div>
                                 </div>

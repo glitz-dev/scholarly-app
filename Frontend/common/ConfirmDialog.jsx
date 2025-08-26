@@ -15,8 +15,8 @@ const ConfirmDialog = ({
   confirmText = "Confirm",
   cancelText = "Cancel",
   ButtonStyle,
-  variant = "default", 
-  size = "default" 
+  variant = "default",
+  size = "default"
 }) => {
   const [openModal, setOpenModal] = useState(false);
 
@@ -32,23 +32,24 @@ const ConfirmDialog = ({
 
   const getVariantStyles = () => {
     switch (variant) {
-      case "desfault":
-        return {
-          icon: <AlertTriangle className="h-12 w-12 text-blue-500 mx-auto mb-4" />,
-          iconBg: "bg-blue-50 dark:bg-blue-900/20"
-        };
       case "warning":
         return {
           icon: <AlertTriangle className="h-12 w-12 text-amber-500 mx-auto mb-4" />,
           iconBg: "bg-amber-50 dark:bg-amber-900/20"
         };
-      default:
+      case "danger":
         return {
           icon: <AlertTriangle className="h-12 w-12 text-red-500 mx-auto mb-4" />,
           iconBg: "bg-red-100 dark:bg-red-900/20"
         };
+      default:
+        return {
+          icon: <AlertTriangle className="h-12 w-12 text-blue-500 mx-auto mb-4" />,
+          iconBg: "bg-blue-50 dark:bg-blue-900/20"
+        };
     }
   };
+
 
   const getSizeStyles = () => {
     switch (size) {
@@ -82,7 +83,7 @@ const ConfirmDialog = ({
         bg-white dark:bg-gray-900 
         rounded-2xl shadow-xl border border-gray-200 dark:border-gray-700
         max-h-[90vh] overflow-y-auto py-5
-      `}> 
+      `}>
         {/* Content*/}
         <div className="px-6 py-8 sm:px-8 sm:py-10">
           {/* Icon */}

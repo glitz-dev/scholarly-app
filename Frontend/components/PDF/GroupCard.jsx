@@ -214,6 +214,7 @@ const GroupCard = React.memo(({ groupName, emails, count, groupId, setIsMounting
                                                                 <Trash className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-red-500 hover:text-red-600 cursor-pointer" />
                                                             </div>
                                                         }
+                                                        variant="danger"
                                                         title="Are you sure you want to delete this email?"
                                                         onConfirm={() => handleDeleteEmail(item)}
                                                         onCancel={() => console.log("Cancelled")}
@@ -259,6 +260,7 @@ const GroupCard = React.memo(({ groupName, emails, count, groupId, setIsMounting
                                     <div className="flex justify-center sm:justify-end">
                                         <ConfirmDialog
                                             triggerText="Delete Group"
+                                            variant="danger"
                                             title="Are you sure you want to delete this group?"
                                             onConfirm={handleDeleteGroup}
                                             onCancel={() => console.log("Cancelled")}

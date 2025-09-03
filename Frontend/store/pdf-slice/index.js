@@ -4,7 +4,8 @@ import { createAsyncThunk, createSlice } from "@reduxjs/toolkit";
 const initialState = {
     isLoading: false,
     collectionList: [],
-    error: null
+    error: null,
+    selectedPdf: null // Add selectedPdf to store the fetched PDF data
 }
 
 export const saveFile = createAsyncThunk('/pdf/savefile', async ({ formData, authToken }, { rejectWithValue }) => {
@@ -25,14 +26,13 @@ export const saveFile = createAsyncThunk('/pdf/savefile', async ({ formData, aut
     }
 });
 
-export const getCollections = createAsyncThunk('/pdf/getcollections', async ({authToken}, {rejectWithValue}) => {
+export const getCollections = createAsyncThunk('/pdf/getcollections', async ({ authToken }, { rejectWithValue }) => {
     try {
         const response = await axios.get(`/api/PDF/uploadedpdfslist`, {
             headers: {
                 Authorization: `Bearer ${authToken}`
             }
         })
-        console.log('...response', response)
         return response?.data;
     } catch (error) {
         return rejectWithValue(error.response?.data?.message || 'Can not fetch files');
@@ -76,6 +76,20 @@ export const searchPdf = createAsyncThunk('/pdf/searchPdf', async ({ keyword, us
         return response?.data;
     } catch (error) {
         return rejectWithValue(error.response?.data?.message || 'Can not fetch collection')
+    }
+})
+
+export const getUploadedPdf = createAsyncThunk('/pdf/getUploadedPdf', async ({ uploadId, authToken }, { rejectWithValue }) => {
+    try {
+        const response = await axios.get(`/api/PDF/getuploadedpdf?uploadId=${uploadId}`, {
+            headers: {
+                Authorization: `Bearer ${authToken}`
+            },
+            responseType: 'blob'
+        });
+        return response?.data;
+    } catch (error) {
+        return rejectWithValue(error.response?.data?.message || 'Can not fetch PDF');
     }
 })
 
@@ -128,6 +142,15 @@ const collectionSlice = createSlice({
         }).addCase(searchPdf.rejected, (state, action) => {
             state.isLoading = false;
             state.error = action?.payload;
+        }).addCase(getUploadedPdf.pending, (state) => {
+            state.isLoading = true;
+        }).addCase(getUploadedPdf.fulfilled, (state, action) => {
+            state.isLoading = false;
+            state.selectedPdf = action.payload;
+            state.error = null;
+        }).addCase(getUploadedPdf.rejected, (state, action) => {
+            state.isLoading = false;
+            state.error = action.payload;
         })
     }
 })

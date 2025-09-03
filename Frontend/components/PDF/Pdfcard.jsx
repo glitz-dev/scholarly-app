@@ -12,6 +12,8 @@ import { Tabs, TabsContent } from "@/components/ui/tabs";
 import dynamic from 'next/dynamic';
 import { marked } from "marked";
 import "react-quill-new/dist/quill.snow.css";
+import { useDispatch, useSelector } from 'react-redux';
+import { getUploadedPdf } from '@/store/pdf-slice';
 const ReactQuill = dynamic(() => import("react-quill-new"), { ssr: false });
 
 const PdfCard = ({
@@ -32,6 +34,8 @@ const PdfCard = ({
   const [isEditing, setIsEditing] = useState(false);
   const [activeTab, setActiveTab] = useState('view');
   const { showToast } = useCustomToast();
+  const dispatch = useDispatch()
+  const { user } = useSelector((state) => state.auth)
 
   const alteredSummaryText = summary?.[0]?.summary ?? "";
   const alteredSummary = alteredSummaryText
@@ -50,12 +54,29 @@ const PdfCard = ({
 
   const handlePdfClick = async () => {
     try {
-      window.open(`/viewer?uploadId=${id}`, '_blank');
+      const result = await dispatch(
+        getUploadedPdf({ uploadId: id, authToken: user?.token })
+      );
+
+      if (result.meta.requestStatus === "fulfilled") {
+        const blob = result.payload; 
+        const blobUrl = URL.createObjectURL(blob);
+
+        // Navigate to PdfViewer page with blobUrl
+        window.open(`/pdf-viewer/${id}?url=${encodeURIComponent(blobUrl)}`);
+      } else {
+        showToast({
+          title: "Error",
+          description: "Failed to fetch PDF",
+          variant: "error",
+        });
+      }
     } catch (error) {
+      console.error("Error fetching PDF:", error);
       showToast({
         title: "Error",
-        description: "Could not load the PDF. Please try again.",
-        variant: "destructive",
+        description: "Could not load the PDF.",
+        variant: "error",
       });
     }
   };

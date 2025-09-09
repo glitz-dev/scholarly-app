@@ -15,10 +15,8 @@ const page = () => {
   }, [dispatch])
 
   return (
-    <div className='flex flex-col justify-center items-center mt-2 dark:bg-gray-800'>
-      <div className='mt-5'>
+    <div className='mt-2 dark:bg-gray-800 min-w-full'>
         <ProfileCard userProfileData={userData} />
-      </div>
     </div>
   )
 }

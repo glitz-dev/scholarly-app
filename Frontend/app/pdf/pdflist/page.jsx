@@ -1,14 +1,13 @@
 'use client'
 import Pdfcard from '@/components/PDF/Pdfcard'
-import SearchPdf from '@/components/PDF/SearchPdf'
 import UploadPdf from '@/components/PDF/UploadPdf'
 import useUserId from '@/hooks/useUserId'
 import React, { useCallback, useEffect, useRef, useState } from 'react'
 import { useDispatch, useSelector } from 'react-redux';
-import { deletePdf, getCollections, saveFile, searchPdf } from '@/store/pdf-slice';
+import { deletePdf, getCollections, saveFile } from '@/store/pdf-slice';
 import { useCustomToast } from '@/hooks/useCustomToast';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion'
-import { FileText, Upload, GraduationCap } from 'lucide-react'
+import { FileText, GraduationCap } from 'lucide-react'
 
 const PdfList = () => {
   const { collectionList } = useSelector((state) => state.collection);
@@ -23,8 +22,6 @@ const PdfList = () => {
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [loadingCollections, setLoadingCollections] = useState(false);
-  const [searchingCollections, setSearchingCollections] = useState(false);
-  const [searchedCollectionList, setSearchedCollectionList] = useState([]);
   const [listOfCollections, setListOfCollections] = useState([]);
   const [showActions, setShowActions] = useState(false);
   const [formData, setFormData] = useState({
@@ -33,6 +30,8 @@ const PdfList = () => {
     pubmedid: '',
     author: '',
     doi: '',
+    publisher: '',
+    copyright: '',
     file: ''
   });
 
@@ -55,11 +54,11 @@ const PdfList = () => {
       form.append('pubmedid', formData.pubmedid);
       form.append('author', formData.author);
       form.append('doi', formData.doi);
+      form.append('publisher', formData.publisher);
+      form.append('copyright_info', formData.copyright);
       form.append('userId', userId)
       form.append('file', formData.file);
-
       const result = await dispatch(saveFile({ formData: form, authToken: user?.token }));
-      console.log('...result', result);
       if (result?.meta?.requestStatus
         === 'fulfilled') {
         showToast({
@@ -81,6 +80,8 @@ const PdfList = () => {
           pubmedid: '',
           author: '',
           doi: '',
+          publisher: '',
+          copyright: '',
           userId: ''
         })
 
@@ -88,14 +89,14 @@ const PdfList = () => {
         showToast({
           title: "Upload failed",
           description: result?.payload?.message || "Failed to upload the collection.",
-          variant: "destructive",
+          variant: "error",
         });
       }
     } catch (err) {
       showToast({
         title: "Something went wrong",
         description: err?.message || "Unable to upload the collection. Please try again.",
-        variant: "destructive",
+        variant: "error",
       });
     } finally {
       setIsSubmitting(false)
@@ -103,13 +104,13 @@ const PdfList = () => {
 
   }, [dispatch, formData, user?.token, userId, showToast])
 
-  // Delete collection
+  // handle delete collection
   const handleDeleteCollection = useCallback(
     async (id) => {
       try {
         setLoadingCollections(false)
-        const result = await dispatch(deletePdf({ userId, id, authToken: user?.token }))
-        if (result?.payload?.success) {
+        const result = await dispatch(deletePdf({ pdfUploadedId: id, authToken: user?.token }))
+        if (result?.payload) {
           setListOfCollections((prev) => prev.filter((c) => c.id !== id))
           dispatch(getCollections({ userId, authToken: user?.token }))
           showToast({
@@ -120,33 +121,17 @@ const PdfList = () => {
           showToast({
             title: "Failed to delete collection",
             description: result?.payload?.message || "Something went wrong while deleting.",
-            variant: "destructive",
+            variant: "error",
           });
         }
       } catch (error) {
         showToast({
           title: "Error deleting collection",
           description: error?.message || "Please try again later.",
-          variant: "destructive",
+          variant: "error",
         });
       }
     }, [dispatch, userId, user?.token, showToast])
-
-  // Search collection
-  const handleSearchCollection = useCallback((keyword) => {
-    setSearchingCollections(true)
-    try {
-      dispatch(searchPdf({ keyword, userId, authToken: user?.token })).then((result) => {
-        setSearchingCollections(false)
-        if (result?.payload?.success) {
-          setSearchedCollectionList(result?.payload?.data);
-        }
-      })
-    } catch (error) {
-      setSearchingCollections(false)
-      console.log(error)
-    }
-  }, [dispatch, userId, user?.token])
 
   // Fetch collections on mount
   useEffect(() => {
@@ -167,11 +152,10 @@ const PdfList = () => {
 
   useEffect(() => {
     setLoadingCollections(true)
-  }, [])
-  console.log('....listOfCollections', listOfCollections)
-  
+  }, []);
+
   return (
-    <div className="flex flex-col gap-6 h-full bg-white dark:bg-gray-800 dark:text-white">
+    <div className="flex flex-col gap-6 h-full min-w-full dark:bg-gray-800 dark:text-white">
       {/* Enhanced Upload PDF Section */}
       <div className="bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-800 dark:to-gray-700 rounded-xl shadow-sm border border-blue-200 dark:border-gray-600 overflow-hidden">
         <Accordion type="single" collapsible className="w-full">
@@ -193,15 +177,15 @@ const PdfList = () => {
             </AccordionTrigger>
             <AccordionContent className="px-0 md:px-6 pb-6">
               <div className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-inner border border-gray-100 dark:border-gray-600">
-                <UploadPdf 
-                  setFile={setFile} 
-                  fileUrl={fileUrl} 
-                  setFileUrl={setFileUrl} 
-                  formData={formData} 
-                  setFormData={setFormData} 
-                  isSubmitting={isSubmitting} 
-                  fileInputRef={fileInputRef} 
-                  handleUploadCollection={handleUploadCollection} 
+                <UploadPdf
+                  setFile={setFile}
+                  fileUrl={fileUrl}
+                  setFileUrl={setFileUrl}
+                  formData={formData}
+                  setFormData={setFormData}
+                  isSubmitting={isSubmitting}
+                  fileInputRef={fileInputRef}
+                  handleUploadCollection={handleUploadCollection}
                 />
               </div>
             </AccordionContent>
@@ -209,16 +193,12 @@ const PdfList = () => {
         </Accordion>
       </div>
 
-      {/* Search PDF */}
-      {/* <div className="group border-l-4 border-transparent bg-white shadow-lg flex items-center px-7 py-10 md:py-7 lg:py-7 dark:bg-gray-900 rounded-lg">
-        <SearchPdf handleSearchCollection={handleSearchCollection} setSearchingCollections={setSearchingCollections} searchedCollectionList={searchedCollectionList} setSearchedCollectionList={setSearchedCollectionList} searchingCollections={searchingCollections} />
-      </div> */}
-      
       {/* List PDFs */}
-      <div className="group border-l-4 border-transparent bg-transparent flex flex-col px-0 md:px-7 lg:px-7 flex-1 rounded-lg">
+      <div className="relative group border-l-4 border-transparent bg-transparent flex flex-col px-0 md:px-7 lg:px-7 flex-1 rounded-lg">
         <div className="flex items-center gap-3 my-4">
-          <FileText className="w-5 h-5 text-blue-600 dark:text-blue-400" />
-          <h1 className='font-semibold text-blue-600 dark:text-blue-400 text-lg'>My Collections</h1>
+          <FileText className="w-5 h-5 text-black dark:text-gray-300" />
+          <div className="absolute bg-green-600 text-xs text-white rounded-full px-1 py-0.2 top-3 left-2 md:top-3 md:left-9">{collectionList?.length}</div>
+          <h1 className='font-semibold text-black dark:text-gray-300 text-lg'>My Collections</h1>
         </div>
         {loadingCollections ? (
           <div className="py-8">
@@ -231,16 +211,22 @@ const PdfList = () => {
           listOfCollections && listOfCollections.length > 0 ? (
             <div className="space-y-4">
               {listOfCollections.map((collection, index) => (
-                <Pdfcard 
-                  key={index} 
-                  id={collection.PDFUploadedId} 
-                  article={collection.Article} 
-                  author={collection.Author} 
-                  doi={collection.DOINo} 
-                  pdf={collection.PDFPath} 
-                  pubmedId={collection.PUBMEDId} 
-                  handleDeleteCollection={handleDeleteCollection} 
-                  showActions={showActions} 
+                <Pdfcard
+                  key={index}
+                  id={collection?.PDFUploadedId}
+                  article={collection?.Article}
+                  author={collection?.Author}
+                  doi={collection?.DOINo}
+                  pdf={collection?.PDFPath}
+                  pubmedId={collection?.PUBMEDId}
+                  publisher={collection?.Publisher}
+                  copyright={collection?.Copyright_info}
+                  dateCreated={collection?.CreatedDate}
+                  showActions={showActions}
+                  setLoadingCollections={setLoadingCollections}
+                  setListOfCollections={setListOfCollections}
+                  summary={collection?.PDFSummary}
+                  handleDeleteCollection={handleDeleteCollection}
                 />
               ))}
             </div>

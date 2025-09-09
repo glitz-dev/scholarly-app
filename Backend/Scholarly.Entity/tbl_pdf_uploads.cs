@@ -100,9 +100,7 @@ namespace Scholarly.Entity
             get;
             set;
         }
-
         public string metadata { get; set; } = "{}";
-
         public virtual ICollection<tbl_pdf_question_tags>? tbl_pdf_question_tags //why define as collection?
         {
             get;

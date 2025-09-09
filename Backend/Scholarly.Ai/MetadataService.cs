@@ -13,9 +13,9 @@ public class MetadataService : IMetadataService
 {
     private readonly HttpClient _httpClient;
     private readonly string _unpaywallEmail;
-    public MetadataService(IConfiguration configuration, HttpClient httpClient)
+    public MetadataService(IConfiguration configuration)
     {
-        _httpClient = httpClient;
+        _httpClient = new HttpClient();
         _unpaywallEmail = configuration["Unpaywall:Email"];
     }
     private async Task<JObject> FetchUnpaywallDataAsync(string doi)

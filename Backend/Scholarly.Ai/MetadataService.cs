@@ -1,9 +1,8 @@
-﻿using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
+﻿using Newtonsoft.Json.Linq;
 using NLog;
 using Npgsql;
 using Scholarly.Ai;
-using UglyToad.PdfPig.Graphics;
+using Microsoft.Extensions.Configuration;
 
 public interface IMetadataService
 {
@@ -13,9 +12,11 @@ public interface IMetadataService
 public class MetadataService : IMetadataService
 {
     private readonly HttpClient _httpClient;
-    public MetadataService()
+    private readonly string _unpaywallEmail;
+    public MetadataService(IConfiguration configuration)
     {
         _httpClient = new HttpClient();
+        _unpaywallEmail = configuration["Unpaywall:Email"];
     }
     private async Task<JObject> FetchUnpaywallDataAsync(string doi)
     {

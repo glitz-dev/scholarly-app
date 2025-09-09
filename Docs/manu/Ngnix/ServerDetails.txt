@@ -1,0 +1,49 @@
+ec2-user@3.6.34.174
+
+
+VPC:
+GALANT_VPC
+CIDR: 10.0.0.0/16
+
+Subnet:
+Name: GALANT_SUBNET_DEV
+CIDR:  10.0.0.0/24
+
+Name: GALANT_SUBNET_PRD
+CIDR:  10.0.1.0/24
+
+
+
+Internet Gateway:
+GALANT_IGW
+
+attached to GALANT_VPC
+
+
+Route Table:
+GALANT_RT
+
+attached to GALANT_VPC
+
+
+Sec Group:
+
+GALANT_DEV_SEC_GRP
+GALANT_PRD_SEC_GRP
+
+
+Elastic IP:
+
+IPV4 1 : 3.6.34.174
+
+==============================
+
+Instance:
+Name: GALANT_DEV_SRV
+OS: Amazon linux 2023
+Type: t2.large
+CPU: 2
+Mem: 8GB
+
+
+

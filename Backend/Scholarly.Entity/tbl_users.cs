@@ -52,7 +52,7 @@ namespace Scholarly.Entity
             set;
         }
 
-        public string? lastname
+        public string lastname
         {
             get;
             set;

@@ -35,6 +35,7 @@ builder.Services.AddTransient<IPDFHelper, PDFHelper>();
 builder.Services.AddTransient<IPdfDa, PdfDa>();
 builder.Services.AddTransient<IUserDa,UserDa>();
 builder.Services.AddTransient<IGeminiService, GeminiService>();
+builder.Services.AddTransient<IMetadataService, MetadataService>();
 builder.Services.AddControllers()
     .AddNewtonsoftJson(options =>
     {

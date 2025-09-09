@@ -1,0 +1,32 @@
+1. Connect to server using Putty	
+ 	    - Server name : ec2-user@3.6.34.174
+	    - Provide Key using  SSH -> Auth -> Credentials -> Private Key for nginx [browse file .ppk]
+2. From the cmd terminal,
+	1. sudo su - node-user
+	2. pm2 status scholarly
+	3. cd /var/www/sites/scholarly.galantit.com/
+	4. ls
+	5. rm -f Scholarly*.zip
+	6. wget -c http://klf.glitzit.com/FileName.zip
+	7. unzip FileName.zip
+	8. cd FileName
+	9. rm -rf .next node_modules
+	10. mv next.config.mjs next.config.mjs-bak
+	11. cp ../Frontend/next.config.mjs
+	12. diff next.config.mjs next.config.mjs-bak
+	13. cd ..
+	14. ls
+	15. rm -rf Frontend-bak
+	16. pm2 stop scholarly
+	17. mv Frontend Frontend-bak
+	18. ls
+	19. mv ExtractedFileName Frontend
+	20. ls
+	21. cd Frontend
+	22. npm install
+	23. npm audit fix --force
+	24. npm run build
+	25. pm2 start scholarly
+ 
+
+

@@ -27,3 +27,11 @@ CREATE TABLE public.tbl_pdf_summary_list (
 -- 18 Aug 25
 
 alter table tbl_pdf_summary_list  add llm_model varchar(250)
+
+-- 20 Aug 25
+
+ALTER TABLE public.tbl_pdf_question_tags DROP COLUMN isdeleted;
+
+-- 09 Sept 25
+
+ALTER TABLE tbl_pdf_uploads ADD COLUMN metadata JSONB;

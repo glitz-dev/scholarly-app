@@ -30,7 +30,7 @@ namespace Scholarly.WebAPI.Helper
 
             var claims = new List<Claim>();
             claims.Add(new Claim("UserId", tblUser.userid.ToString()));
-            claims.Add(new Claim("User", tblUser.firstname));
+            claims.Add(new Claim("User", tblUser.firstname ?? ""));
             claims.Add(new Claim("UserMail", tblUser.emailid));
 
             var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes("qk6McRhZFLF9S3OwEuJeCslLWKaqVsDiGQIfuGJKZsI="));

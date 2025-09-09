@@ -25,11 +25,12 @@ namespace Scholarly.WebAPI.Controllers
         private readonly IConfiguration _config;
         private readonly IPDFHelper _PDFHelper;
         private readonly IGeminiService _GeminiService;
+        private readonly IMetadataService _metaDataService; 
         private readonly string _ConnectionStrings;
         public CurrentContext _currentContext;
         private readonly IPdfDa _IPdfDa;
         private static Logger _logger = LogManager.GetCurrentClassLogger();
-        public PDFController(IWebHostEnvironment env, IConfiguration configuration, SWBDBContext swbDBContext, IPDFHelper pDFHelper, IPdfDa iPdfDa, IHttpContextAccessor httpContextAccessor, IGeminiService GeminiService)
+        public PDFController(IWebHostEnvironment env, IConfiguration configuration, SWBDBContext swbDBContext, IPDFHelper pDFHelper, IPdfDa iPdfDa, IHttpContextAccessor httpContextAccessor, IGeminiService GeminiService, IMetadataService MetaDataService)
         {
             _env = env;
             _config = configuration;
@@ -37,6 +38,7 @@ namespace Scholarly.WebAPI.Controllers
             _PDFHelper = pDFHelper;
             _IPdfDa = iPdfDa;
             _GeminiService = GeminiService;
+            _metaDataService = MetaDataService;
             _currentContext = Common.GetCurrentContext(httpContextAccessor.HttpContext.User.Identity as ClaimsIdentity);
             _ConnectionStrings =Convert.ToString(configuration["ConnectionStrings:DefaultConnection"]);
         }
@@ -314,6 +316,11 @@ namespace Scholarly.WebAPI.Controllers
                                     Task.Run(async () =>
                                     {
                                         _GeminiService.SummarizeTextAsync(_logger, _ConnectionStrings,tBLPDFUPLOAD1.pdf_saved_path, AI_Key, record.pdf_summary_id);
+                                    });
+
+                                    Task.Run(async () =>
+                                    {
+                                       _metaDataService.ExtractMetadataAsync(_logger, tBLPDFUPLOAD1.pdf_saved_path, _ConnectionStrings, tBLPDFUPLOAD1.doi_number, tBLPDFUPLOAD1.pdf_uploaded_id);
                                     });
                                 }
                             }

@@ -13,16 +13,16 @@ public class MetadataService : IMetadataService
 {
     private readonly HttpClient _httpClient;
     private readonly string _unpaywallEmail;
-    public MetadataService(IConfiguration configuration)
+    public MetadataService(IConfiguration configuration, HttpClient httpClient)
     {
-        _httpClient = new HttpClient();
+        _httpClient = httpClient;
         _unpaywallEmail = configuration["Unpaywall:Email"];
     }
     private async Task<JObject> FetchUnpaywallDataAsync(string doi)
     {
-        string url = $"https://api.unpaywall.org/v2/{doi}?email=sundar_gv@yahoo.com";
+        string url = $"https://api.unpaywall.org/v2/{doi}?email={_unpaywallEmail}";
         var request = new HttpRequestMessage(HttpMethod.Get, url);
-        request.Headers.Add("User-Agent", "PDFAnalyzer/1.0 (mailto:sundar_gv@yahoo.com)");
+        request.Headers.Add("User-Agent", $"PDFAnalyzer/1.0 (mailto:{_unpaywallEmail})");
 
         var response = await _httpClient.SendAsync(request);
         response.EnsureSuccessStatusCode();

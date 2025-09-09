@@ -208,7 +208,8 @@ const CreateGroup = ({ setIsMounting, listOfGroups, setListOfGroups }) => {
                         onChange={(e) => setEmailInput(e.target.value)}
                         onKeyDown={addEmail}
                         rows={2}
-                        className="bg-transparent resize-none p-0 text-sm sm:text-base text-gray-700 dark:text-gray-300 placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:outline-none focus:ring-0 focus-visible:outline-none min-h-12 sm:min-h-16"
+                        className="bg-transparent resize-none p-0 text-sm sm:text-base text-gray-700 dark:text-gray-300 placeholder:text-gray-400 dark:placeholder:text-gray-500 
+                        focus:outline-none focus:ring-0 focus:ring-transparent focus-visible:outline-none focus-visible:ring-0 outline-none ring-0 border-none shadow-none"
                         placeholder={emails.length === 0 ? "Type email address and press Enter to add..." : "Add another email..."}
                       />
 

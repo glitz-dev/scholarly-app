@@ -12,6 +12,7 @@ using NLog;
 using Scholarly.WebAPI.DataAccess;
 using System.Net;
 using Microsoft.AspNetCore.HttpOverrides;
+using Npgsql;
 
 
 var builder = WebApplication.CreateBuilder(args);
@@ -74,6 +75,7 @@ builder.Services.AddCors(options =>
         
 });
 
+NpgsqlConnection.GlobalTypeMapper.EnableDynamicJson();
 
 GlobalDiagnosticsContext.Set("NLogDb", configuration["ConnectionStrings:DefaultConnection"]);
 // Add NLog

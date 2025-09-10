@@ -1,4 +1,5 @@
-﻿using System.Xml.Linq;
+﻿using System.Text.Json;
+using System.Xml.Linq;
 
 namespace Scholarly.WebAPI.Model
 {
@@ -189,6 +190,17 @@ namespace Scholarly.WebAPI.Model
             set;
         }
         public string? Copyright_info
+        {
+            get;
+            set;
+        }
+        public string? Metadata
+        {
+            get;
+            set;
+        }
+
+        public int? ProjectId
         {
             get;
             set;

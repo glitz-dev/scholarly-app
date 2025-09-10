@@ -2,6 +2,7 @@
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 using NLog;
+using Pipelines.Sockets.Unofficial.Arenas;
 using SautinSoft;
 using Scholarly.DataAccess;
 using Scholarly.Entity;
@@ -9,6 +10,7 @@ using Scholarly.WebAPI.DataAccess;
 using Scholarly.WebAPI.Helper;
 using Scholarly.WebAPI.Model;
 using System.Security.Claims;
+using System.Text.Json;
 //using DocumentFormat.OpenXml.Office.SpreadSheetML.Y2023.DataSourceVersioning;
 //using DocumentFormat.OpenXml.Wordprocessing;
 
@@ -231,6 +233,7 @@ namespace Scholarly.WebAPI.Controllers
                         doi_number = formval.doi,
                         publisher = formval.publisher,
                         copyright_info = formval.copyright_info,
+                        project_id = formval.project_id,
                         is_public = new bool?(false),
                         status = true
                     };
@@ -378,7 +381,7 @@ namespace Scholarly.WebAPI.Controllers
                 string str = _currentContext.UserId.ToString();
                 pDFs = (
                     from P in _swbDBContext.tbl_pdf_uploads
-                    where P.user_id == str && P.status == (bool?)true
+                    where P.user_id == str && P.status == true
                     select new PDF()
                     {
                         PDFPath = P.pdf_saved_path,
@@ -392,7 +395,10 @@ namespace Scholarly.WebAPI.Controllers
                         Author = P.author,
                         Publisher = P.publisher,
                         Copyright_info = P.copyright_info,
-                        Annotationscount = 9, //P.tbl_pdf_question_tags.Where(x => x.pdf_uploaded_id == (int?)P.pdf_uploaded_id && !(bool)x.is_deleted).Count(),
+                        Metadata = P.metadata,
+                        ProjectId = P.project_id,
+                        Annotationscount = 9,  
+                        // Annotationscount = _swbDBContext.tbl_pdf_question_tags.Where(x=>x.status_id == true && x.user_id == str).Count(),
                         AnnotatedQuestions = _swbDBContext.tbl_pdf_question_tags.Where<tbl_pdf_question_tags>((tbl_pdf_question_tags x) => x.pdf_uploaded_id == (int?)P.pdf_uploaded_id).Select<tbl_pdf_question_tags, Questions>((tbl_pdf_question_tags q) => new Questions()
                         {
                             Question = q.question,
@@ -649,6 +655,19 @@ namespace Scholarly.WebAPI.Controllers
                 return StatusCode(500, $"Error reading PDF: {ex.Message}");
             }
         }
+        [HttpPost]
+        [Route("addproject")]
+        public ActionResult AddProject(int UserId, string Title, string Description)
+        {
+            return Ok(_IPdfDa.AddProject(_swbDBContext, _logger, UserId, Title, Description));
+        }
+        [HttpGet]
+        [Route("allprojects")]
+        public ActionResult LoadProjects(int UserId)
+        {
+            return Ok(_IPdfDa.LoadProjects(_swbDBContext, _logger, UserId));
+        }
+
     }
 }
 

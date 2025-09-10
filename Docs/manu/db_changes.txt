@@ -35,3 +35,25 @@ ALTER TABLE public.tbl_pdf_question_tags DROP COLUMN isdeleted;
 -- 09 Sept 25
 
 ALTER TABLE tbl_pdf_uploads ADD COLUMN metadata JSONB;
+
+-- 10 Sept 25
+
+CREATE TABLE public.tbl_projects (
+	project_id INT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+	title varchar(200)NOT NULL,
+	description text NULL,
+	created_by int NOT NULL,
+	created_date timestamptz NOT NULL DEFAULT CURRENT_TIMESTAMP,
+	updated_by int NULL,
+	updated_date timestamptz NULL,
+	status bool NULL
+);
+
+ALTER TABLE tbl_pdf_uploads ADD COLUMN project_id INT;
+
+ALTER TABLE tbl_pdf_uploads 
+ADD CONSTRAINT fk_pdfuploads_project
+FOREIGN KEY (project_id)
+REFERENCES tbl_projects (project_id)
+ON DELETE CASCADE
+ON UPDATE CASCADE;

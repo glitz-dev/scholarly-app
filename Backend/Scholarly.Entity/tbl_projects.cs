@@ -1,48 +1,56 @@
-﻿namespace Scholarly.WebAPI.Model
+﻿using System;
+using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations;
+
+namespace Scholarly.Entity
 {
-    public class FileDetail
+
+    public class tbl_projects
     {
-        public string article
+        [Key]
+        public int project_id
         {
             get;
             set;
         }
-        public string? url
-        {
-            get;
-            set;
-        }
-        public string pubmedid
+        public string title
         {
             get;
             set;
         }
 
-        public string author
+        public string? description
         {
             get;
             set;
         }
-        public string doi
+        public int created_by
         {
             get;
             set;
         }
-        public string? publisher
+        public DateTime created_date
         {
             get;
             set;
         }
-        public string? copyright_info
+
+        public int updated_by
         {
             get;
             set;
         }
-        public int? project_id
+
+        public DateTime? updated_date
         {
             get;
             set;
         }
-        public IFormFile file { get; set; }
+
+        public bool status
+        {
+            get;
+            set;
+        }
     }
 }

@@ -20,6 +20,9 @@ namespace Scholarly.WebAPI.DataAccess
         bool DeleteQuestion(SWBDBContext swbDBContext, Logger logger, int QID);
 
         //bool EditPdf(SWBDBContext swbDBContext, Logger logger, int UId);
+        bool AddProject(SWBDBContext swbDBContext, Logger logger, int UserId, string Title, string Description);
+
+        List<Projects> LoadProjects(SWBDBContext swbDBContext, Logger logger, int UserId);
     }
     public class PdfDa : IPdfDa
     {
@@ -200,9 +203,7 @@ namespace Scholarly.WebAPI.DataAccess
             bool flag = false;
             try
             {
-                Boolean result = (from x in swbDBContext.tbl_groups
-                                  where x.group_name == GroupName && x.created_by == UserId
-                                  select x.group_name).Count<string>() != 0;
+                bool result = swbDBContext.tbl_groups.Any(x => x.status == true && x.group_name == GroupName && x.created_by == UserId);
                 if (result)
                 {
                     flag = false;
@@ -263,6 +264,55 @@ namespace Scholarly.WebAPI.DataAccess
                 return true;
             }
             return false;
+        }
+
+        public bool AddProject(SWBDBContext swbDBContext, Logger logger, int UserId, string Title, string Description)
+        {
+            bool flag = false;
+            try
+            {
+                bool result = swbDBContext.tbl_projects.Any(x => x.status == true && x.title == Title && x.created_by == UserId);
+                if (result)
+                {
+                    flag = false;
+                    throw new Exception("Already exist");
+                }
+                else
+                {
+                    tbl_projects tblProject = new tbl_projects()
+                    {
+                        created_by = UserId,
+                        created_date = DateTime.UtcNow,
+                        status =true
+                    };
+                    swbDBContext.tbl_projects.Add(tblProject);
+                    swbDBContext.SaveChanges();
+                }
+            }
+            catch (Exception exception)
+            {
+                logger.Error(exception.Message);
+            }
+
+            return flag;
+        }
+        public List<Projects> LoadProjects(SWBDBContext swbDBContext, Logger logger, int UserId)
+        {
+            List<Projects> projects = new List<Projects>();
+            try
+            {
+                projects = swbDBContext.tbl_projects.Where(x => x.status && x.created_by == UserId)
+                          .Select(x => new Projects {
+                              ProjectId = x.project_id,
+                              Title = x.title,
+                              Description = x.description,
+                          }).ToList();
+            }
+            catch (Exception exception)
+            {
+                logger.Error(exception.Message);
+            }
+            return projects;
         }
     }
 }

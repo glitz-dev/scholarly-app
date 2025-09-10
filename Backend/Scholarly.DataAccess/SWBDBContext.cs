@@ -56,6 +56,11 @@ namespace Scholarly.DataAccess
             get;
             set;
         }
+        public DbSet<tbl_projects> tbl_projects
+        {
+            get;
+            set;
+        }
         public SWBDBContext(DbContextOptions<SWBDBContext> options) : base(options)
         {
         }

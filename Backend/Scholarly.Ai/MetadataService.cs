@@ -1,4 +1,5 @@
-﻿using Newtonsoft.Json.Linq;
+﻿using System.Text.Json;
+using System.Text.Json.Nodes;
 using NLog;
 using Npgsql;
 using Scholarly.Ai;
@@ -18,7 +19,7 @@ public class MetadataService : IMetadataService
         _httpClient = new HttpClient();
         _unpaywallEmail = configuration["Unpaywall:Email"];
     }
-    private async Task<JObject> FetchUnpaywallDataAsync(string doi)
+    private async Task<JsonNode> FetchUnpaywallDataAsync(string doi)
     {
         string url = $"https://api.unpaywall.org/v2/{doi}?email={_unpaywallEmail}";
         var request = new HttpRequestMessage(HttpMethod.Get, url);
@@ -28,69 +29,73 @@ public class MetadataService : IMetadataService
         response.EnsureSuccessStatusCode();
         string json = await response.Content.ReadAsStringAsync();
 
-        return JObject.Parse(json);
+        return JsonNode.Parse(json);
     }
 
-    private JObject BuildMetadataFromUnpaywall(JObject data, string doi)
+    private JsonObject BuildMetadataFromUnpaywall(JsonNode data, string doi)
     {
         var authors = string.Join(", ",
-            data["z_authors"]?.Select(a => a["raw_author_name"]?.ToString() ?? "") ?? new string[] { });
+            data["z_authors"]?.AsArray().Select(a => a["raw_author_name"]?.ToString() ?? "") ?? new string[] { });
 
-        var affiliations = data["z_authors"]?
-            .Select(a => a["raw_affiliation_strings"]?.FirstOrDefault()?.ToString() ?? "Unknown")
+        var affiliations = data["z_authors"]?.AsArray()
+            .Select(a => a["raw_affiliation_strings"]?.AsArray().FirstOrDefault()?.ToString() ?? "Unknown")
             .ToList() ?? new List<string> { "Unknown" };
 
-        return new JObject
+        return new JsonObject
         {
-            ["title"] = data["title"] ?? "Unknown",
-            ["authors"] = string.IsNullOrWhiteSpace(authors) ? "Unknown" : authors,
-            ["affiliations"] = new JArray(affiliations),
-            ["abstract"] = data["abstract"] ?? "",
-            ["publisher"] = data["publisher"] ?? "Unknown",
-            ["publication_date"] = data["published_date"] ?? "Unknown",
-            ["journal"] = data["journal_name"] ?? "Unknown",
-            ["doi"] = doi,
-            ["open_access"] = data["is_oa"] ?? false,
-            ["citation_count"] = data["cited_by_count"] ?? 0
+            ["title"] = JsonValue.Create(data["title"]?.ToString() ?? "Unknown"),
+            ["authors"] = JsonValue.Create(string.IsNullOrWhiteSpace(authors) ? "Unknown" : authors),
+            ["affiliations"] = new JsonArray(affiliations.Select(a => JsonValue.Create(a)).ToArray()),
+            ["abstract"] = JsonValue.Create(data["abstract"]?.ToString() ?? ""),
+            ["publisher"] = JsonValue.Create(data["publisher"]?.ToString() ?? "Unknown"),
+            ["publication_date"] = JsonValue.Create(data["published_date"]?.ToString() ?? "Unknown"),
+            ["journal"] = JsonValue.Create(data["journal_name"]?.ToString() ?? "Unknown"),
+            ["doi"] = JsonValue.Create(doi),
+            ["open_access"] = JsonValue.Create((data["is_oa"]?.GetValue<bool>() ?? false)),
+            ["citation_count"] = JsonValue.Create(data["is-referenced-by-count"]?.GetValue<int>() ?? 0)
         };
     }
 
-    private async Task<JObject> FetchCrossRefDataAsync(string doi)
+    private async Task<JsonNode> FetchCrossRefDataAsync(string doi)
     {
         string url = $"https://api.crossref.org/works/{doi}";
         var response = await _httpClient.GetAsync(url);
         response.EnsureSuccessStatusCode();
         string json = await response.Content.ReadAsStringAsync();
 
-        return JObject.Parse(json)["message"] as JObject;
+        return JsonNode.Parse(json)["message"] as JsonNode;
     }
 
-    private JObject BuildMetadataFromCrossRef(JObject data, string doi)
+    private JsonObject BuildMetadataFromCrossRef(JsonNode data, string doi)
     {
         var authors = string.Join(", ",
-            data["author"]?.Select(a => $"{a["given"]} {a["family"]}") ?? new string[] { });
+            data["author"]?.AsArray().Select(a => $"{a["given"]} {a["family"]}") ?? Array.Empty<string>());
 
-        var affiliations = data["author"]?
-            .Select(a => a["affiliation"]?.FirstOrDefault()?["name"]?.ToString() ?? "Unknown")
+        var affiliations = data["author"]?.AsArray()
+            .Select(a => a["affiliation"]?.AsArray().FirstOrDefault()?["name"]?.ToString() ?? "Unknown")
             .ToList() ?? new List<string> { "Unknown" };
 
-        return new JObject
+        return new JsonObject
         {
-            ["title"] = data["title"]?.FirstOrDefault() ?? "Unknown",
-            ["authors"] = string.IsNullOrWhiteSpace(authors) ? "Unknown" : authors,
-            ["affiliations"] = new JArray(affiliations),
-            ["abstract"] = data["abstract"] ?? "",
-            ["publisher"] = data["publisher"] ?? "Unknown",
-            ["publication_date"] = data["published"]?["date-parts"]?[0]?[0] ?? "Unknown",
-            ["journal"] = data["container-title"]?.FirstOrDefault() ?? "Unknown",
-            ["doi"] = doi,
-            ["open_access"] = (data["is-referenced-by-count"]?.Value<int>() ?? 0) > 0,
-            ["citation_count"] = data["is-referenced-by-count"] ?? 0
+            ["title"] = JsonValue.Create(data["title"]?.ToString() ?? "Unknown"),
+            ["authors"] = JsonValue.Create(string.IsNullOrWhiteSpace(authors) ? "Unknown" : authors),
+            ["affiliations"] = new JsonArray(affiliations.Select(a=>JsonValue.Create(a)).ToArray()),
+            ["abstract"] = JsonValue.Create(data["abstract"]?.ToString() ?? ""),
+            ["publisher"] = JsonValue.Create(data["publisher"]?.ToString() ?? "Unknown"),
+            ["publication_date"] = JsonValue.Create(data["published_date"]?.ToString() ?? "Unknown"),
+            ["journal"] = JsonValue.Create(data["container-title"]?.ToString() ?? "Unknown"),
+            ["doi"] = JsonValue.Create(doi),
+            ["open_access"] = JsonValue.Create((data["is_oa"]?.GetValue<bool>() ?? false)),
+            ["citation_count"] = JsonValue.Create(data["is-referenced-by-count"]?.GetValue<int>() ?? 0)
         };
     }
 
-    private void SaveMetadata(JObject metadata, int uploadId, string connectionString)
+    private void SaveMetadata(JsonObject metadata, int uploadId, string connectionString)
     {
+
+        var builder = new NpgsqlDataSourceBuilder(connectionString).EnableDynamicJson();
+        var dataSource = builder.Build();
+
         const string sql = "UPDATE tbl_pdf_uploads SET metadata = @result WHERE pdf_uploaded_id = @id;";
 
         using var conn = new NpgsqlConnection(connectionString);
@@ -108,7 +113,7 @@ public class MetadataService : IMetadataService
         doi = doi.Trim().TrimEnd('.');
         var pdfextract = new DirectPdfMetadataExtractor(pdfPath); // not using now
          
-        JObject metadata = null;
+        JsonObject metadata = null;
 
         try
         {

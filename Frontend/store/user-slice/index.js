@@ -29,6 +29,18 @@ export const saveUserDetails = createAsyncThunk(
       }
     }
   );
+
+export const getDetailsCount = createAsyncThunk(
+    '/user/getcounts',
+    async () => {
+        try {
+            const response = await axios.get('/api/User/getcounts');
+            return response?.data?.Result;
+        } catch (error) {
+            return error.response?.data?.message || 'Can not fetch details count';
+        }
+    }
+)
   
 
 const userDataSlice = createSlice({

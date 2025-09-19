@@ -14,7 +14,7 @@ import { v4 as uuid } from 'uuid';
 import { throttle } from 'lodash';
 import { Copy, Highlighter, StickyNote } from 'lucide-react';
 
-pdfjs.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.js';
+pdfjs.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.mjs';
 
 const PdfViewer = ({ pdfUrl: initialPdfUrl }) => {
   const [isClient, setIsClient] = useState(false);
@@ -97,7 +97,7 @@ const PdfViewer = ({ pdfUrl: initialPdfUrl }) => {
           text: currentHighlight.text,
           page: currentHighlight.page,
           note: note,
-          color: '#00FF00', // Set to green for notes
+          color: '#F7A5A5', // Set to green for notes
           position: currentHighlight.position,
         },
       ]);

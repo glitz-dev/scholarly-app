@@ -15,14 +15,13 @@ namespace Scholarly.WebAPI.DataAccess
         PDF GetPDFPath(SWBDBContext swbDBContext, Logger logger, int PathId);
         bool DeleteEmail(SWBDBContext swbDBContext, Logger logger, string UserId, int GroupEmailId);
         bool DeleteGroup(SWBDBContext swbDBContext, Logger logger, string UserId, int GroupId);
-
         bool DeletePdf(SWBDBContext swbDBContext, Logger logger, int UId);
         bool DeleteQuestion(SWBDBContext swbDBContext, Logger logger, int QID);
-
         //bool EditPdf(SWBDBContext swbDBContext, Logger logger, int UId);
         bool AddProject(SWBDBContext swbDBContext, Logger logger, int UserId, string Title, string Description);
-
         List<Projects> LoadProjects(SWBDBContext swbDBContext, Logger logger, int UserId);
+        bool UpdateProject(SWBDBContext swbDBContext, Logger logger, Projects Project, int UserId);
+        bool DeleteProject(SWBDBContext swbDBContext, Logger logger, int ProjectId, int UserId);
     }
     public class PdfDa : IPdfDa
     {
@@ -251,7 +250,6 @@ namespace Scholarly.WebAPI.DataAccess
 
             return flag;
         }
-
         public bool DeleteGroupEmail(SWBDBContext swbDBContext, Logger logger, string UserId, int groupEmailId)
         {
             tbl_groups_emails? retult = swbDBContext.tbl_groups_emails.FirstOrDefault(p => p.group_email_id == groupEmailId);
@@ -265,10 +263,9 @@ namespace Scholarly.WebAPI.DataAccess
             }
             return false;
         }
-
         public bool AddProject(SWBDBContext swbDBContext, Logger logger, int UserId, string Title, string Description)
         {
-            bool flag = false;
+            bool flag = true;
             try
             {
                 bool result = swbDBContext.tbl_projects.Any(x => x.status == true && x.title == Title && x.created_by == UserId);
@@ -281,6 +278,8 @@ namespace Scholarly.WebAPI.DataAccess
                 {
                     tbl_projects tblProject = new tbl_projects()
                     {
+                        title = Title,
+                        description = Description,
                         created_by = UserId,
                         created_date = DateTime.UtcNow,
                         status =true
@@ -306,6 +305,7 @@ namespace Scholarly.WebAPI.DataAccess
                               ProjectId = x.project_id,
                               Title = x.title,
                               Description = x.description,
+                              project_id = x.project_id,
                           }).ToList();
             }
             catch (Exception exception)
@@ -313,6 +313,69 @@ namespace Scholarly.WebAPI.DataAccess
                 logger.Error(exception.Message);
             }
             return projects;
+        }
+        public bool UpdateProject(SWBDBContext swbDBContext, Logger logger, Projects Project, int UserId)
+        {
+            bool flag = false;
+            try
+            {
+                tbl_projects? result = swbDBContext.tbl_projects.FirstOrDefault(x => x.project_id == Project.ProjectId);
+                if (result != null)
+                {
+                    result.title = Project.Title;
+                    result.description = Project.Description;
+                    result.updated_by = UserId;
+                    result.updated_date = DateTime.UtcNow;
+                    swbDBContext.SaveChanges();
+                    flag = true;
+                }
+            }
+            catch (Exception exception)
+            {
+                logger.Error(exception.Message);
+            }
+            return flag;
+        }
+        public bool DeleteProject(SWBDBContext swbDBContext, Logger logger, int ProjectId, int UserId)
+        {
+            using var delTransaction = swbDBContext.Database.BeginTransaction();
+            bool flag = false;
+            try
+            {
+                tbl_projects? result = swbDBContext.tbl_projects.FirstOrDefault(x => x.project_id == ProjectId);
+                if (result != null)
+                {
+                    var uploadList = swbDBContext.tbl_pdf_uploads.Where(x => x.status == true && x.project_id == ProjectId).ToList();
+                    if (uploadList.Count > 0)
+                    {
+                        foreach (var upload in uploadList)
+                        {
+                            var summaryExist = swbDBContext.tbl_pdf_summary_list.Where(x => x.status && x.pdf_uploaded_id == upload.pdf_uploaded_id).ToList();
+                            if (summaryExist.Count > 0)
+                            {
+                                foreach (var summary in summaryExist) { 
+                                    summary.status = false;
+                                    summary.modified_by = UserId;
+                                    summary.modified_date = DateTime.UtcNow;
+                                }
+                            }
+                            upload.status = false;
+                        }
+                    }
+                    result.status = false;
+                    result.updated_by = UserId;
+                    result.updated_date = DateTime.UtcNow;
+                    swbDBContext.SaveChanges();
+                    flag = true;
+                }
+                delTransaction.Commit();
+            }
+            catch (Exception exception)
+            {
+                delTransaction.Rollback();
+                logger.Error(exception.Message);
+            }
+            return flag;
         }
     }
 }

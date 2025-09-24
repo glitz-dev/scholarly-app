@@ -373,7 +373,7 @@ namespace Scholarly.WebAPI.Controllers
 
         [HttpGet]
         [Route("uploadedpdfslist")]
-        public ActionResult GetUploadedPDFsList()
+        public ActionResult GetUploadedPDFsList(int? ProjectId)
         {
             List<PDF> pDFs = new List<PDF>();
             try
@@ -381,7 +381,7 @@ namespace Scholarly.WebAPI.Controllers
                 string str = _currentContext.UserId.ToString();
                 pDFs = (
                     from P in _swbDBContext.tbl_pdf_uploads
-                    where P.user_id == str && P.status == true
+                    where P.user_id == str && P.status == true && P.project_id == ProjectId
                     select new PDF()
                     {
                         PDFPath = P.pdf_saved_path,
@@ -657,15 +657,27 @@ namespace Scholarly.WebAPI.Controllers
         }
         [HttpPost]
         [Route("addproject")]
-        public ActionResult AddProject(int UserId, string Title, string Description)
+        public ActionResult AddProject(string Title, string Description)
         {
-            return Ok(_IPdfDa.AddProject(_swbDBContext, _logger, UserId, Title, Description));
+            return Ok(_IPdfDa.AddProject(_swbDBContext, _logger, _currentContext.UserId, Title, Description));
         }
         [HttpGet]
         [Route("allprojects")]
-        public ActionResult LoadProjects(int UserId)
+        public ActionResult LoadProjects()
         {
-            return Ok(_IPdfDa.LoadProjects(_swbDBContext, _logger, UserId));
+            return Ok(_IPdfDa.LoadProjects(_swbDBContext, _logger, _currentContext.UserId));
+        }
+        [HttpPost]
+        [Route("updateproject")]
+        public ActionResult UpdateProject(Projects Project)
+        {
+            return Ok(_IPdfDa.UpdateProject(_swbDBContext, _logger, Project, _currentContext.UserId));
+        }
+        [HttpPost]
+        [Route("deleteproject")]
+        public ActionResult DeleteProject(int ProjectId)
+        {
+            return Ok(_IPdfDa.DeleteProject(_swbDBContext, _logger, ProjectId, _currentContext.UserId));
         }
 
     }

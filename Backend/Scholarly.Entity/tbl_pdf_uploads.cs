@@ -22,9 +22,9 @@ namespace Scholarly.Entity
         public int? project_id { get; set; }
         public tbl_projects? Tbl_projects { get; set; }
 
-        public string article { get; set; }
+        public string? article { get; set; }
 
-        public string author { get; set; }
+        public string? author { get; set; }
         
 
         public string created_by { get; set; }
@@ -46,7 +46,7 @@ namespace Scholarly.Entity
         public string pdf_saved_path { get; set; }
          
 
-        public string pub_med_id { get; set; }
+        public string? pub_med_id { get; set; }
         
 
         public bool? status { get; set; }

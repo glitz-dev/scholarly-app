@@ -2,7 +2,7 @@
 {
     public class FileDetail
     {
-        public string article
+        public string? article
         {
             get;
             set;
@@ -12,13 +12,13 @@
             get;
             set;
         }
-        public string pubmedid
+        public string? pubmedid
         {
             get;
             set;
         }
 
-        public string author
+        public string? author
         {
             get;
             set;

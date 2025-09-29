@@ -84,11 +84,38 @@ public class GeminiService : IGeminiService
     {
             try
             {
-                var content = new StringContent("", Encoding.UTF8, "application/json");
+                var requestBody = new
+                {
+                    contents = new[]
+                   {
+                            new
+                            {
+                                parts = new[]
+                                {
+                                    new { storageKey = "thesis.pdf",
+                                          projectId= "abc",
+                                          documentId= "doc1",
+                                          ocr= true,
+                                          blip= false,
+                                          userId= "test",
+                                          password="test",
+                                          useEncryption=false
+                                        }
+                                }
+                            }
+                        }
+                };
+                var content = new StringContent(System.Text.Json.JsonSerializer.Serialize(requestBody), Encoding.UTF8, "application/json");
                 var response = await _httpClient.PostAsync(hostedApp, content);
-                response.EnsureSuccessStatusCode();
-
-                var responseContent = await response.Content.ReadAsStringAsync();
+                //response.EnsureSuccessStatusCode();
+                if (!response.IsSuccessStatusCode)
+                {
+                    var responseBody = await response.Content.ReadAsStringAsync();
+                    Console.WriteLine($"Status: {response.StatusCode}");
+                    Console.WriteLine("Response Body:");
+                    Console.WriteLine(responseBody);
+                }
+                  var responseContent = await response.Content.ReadAsStringAsync();
 
                 using var jsonDoc = JsonDocument.Parse(responseContent);
                 var result = jsonDoc.RootElement;

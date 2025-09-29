@@ -205,6 +205,12 @@ namespace Scholarly.WebAPI.Model
             get;
             set;
         }
+
+        public string? QA
+        {
+            get;
+            set;
+        }
         public List<PDFSummary> PDFSummary
         {
             get;

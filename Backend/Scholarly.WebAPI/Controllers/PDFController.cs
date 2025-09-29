@@ -244,6 +244,7 @@ namespace Scholarly.WebAPI.Controllers
                 }
                 else if (formval.file != null && formval.file.Length > 0)
                 {
+                    string AI_HostedApp = _config.GetSection("AppSettings")["Summary_QA_app"]!;
                     string AI_Key = _config.GetSection("AppSettings")["Google_API_Key"]!;
                     string fileLength = formval.file.Length.ToString();
                     string rootPath = _env.ContentRootPath; //added for getting hosted location 
@@ -280,6 +281,7 @@ namespace Scholarly.WebAPI.Controllers
                                 file_name = fileName,
                                 publisher = formval.publisher,
                                 copyright_info = formval.copyright_info,
+                                project_id = formval.project_id,
                                 status = true
                             };
 
@@ -318,7 +320,8 @@ namespace Scholarly.WebAPI.Controllers
                                 {
                                     Task.Run(async () =>
                                     {
-                                        _GeminiService.SummarizeTextAsync(_logger, _ConnectionStrings,tBLPDFUPLOAD1.pdf_saved_path, AI_Key, record.pdf_summary_id);
+                                        //_GeminiService.SummarizeTextAsync(_logger, _ConnectionStrings,tBLPDFUPLOAD1.pdf_saved_path, AI_Key, record.pdf_summary_id);
+                                          _GeminiService.SummarizeText_QA_Async(_logger, _ConnectionStrings, AI_HostedApp, record.pdf_summary_id, tBLPDFUPLOAD1.pdf_uploaded_id);
                                     });
 
                                     Task.Run(async () =>
@@ -398,6 +401,7 @@ namespace Scholarly.WebAPI.Controllers
                         Metadata = P.metadata,
                         ProjectId = P.project_id,
                         Annotationscount = 9,  
+                        QA = P.qa,
                         // Annotationscount = _swbDBContext.tbl_pdf_question_tags.Where(x=>x.status_id == true && x.user_id == str).Count(),
                         AnnotatedQuestions = _swbDBContext.tbl_pdf_question_tags.Where<tbl_pdf_question_tags>((tbl_pdf_question_tags x) => x.pdf_uploaded_id == (int?)P.pdf_uploaded_id).Select<tbl_pdf_question_tags, Questions>((tbl_pdf_question_tags q) => new Questions()
                         {
@@ -666,6 +670,12 @@ namespace Scholarly.WebAPI.Controllers
         public ActionResult LoadProjects()
         {
             return Ok(_IPdfDa.LoadProjects(_swbDBContext, _logger, _currentContext.UserId));
+        }
+        [HttpGet]
+        [Route("getselectedproject")]
+        public ActionResult GetProject(int ProjectId)
+        {
+            return Ok(_IPdfDa.GetProject(_swbDBContext, _logger, ProjectId));
         }
         [HttpPost]
         [Route("updateproject")]

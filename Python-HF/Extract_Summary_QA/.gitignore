@@ -1,0 +1,51 @@
+```
+# Byte-compiled / cache files
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+
+# Virtual environment
+venv/
+.env/
+env/
+.venv/
+
+# VS Code settings
+.vscode/
+
+# Environment / secrets
+*.env
+.env.*
+
+# Distribution / packaging
+*.egg
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# Logs
+*.log
+*.out
+*.err
+*.enc
+
+# Testing
+.coverage
+.tox/
+nosetests.xml
+coverage.xml
+htmlcov/
+
+# Jupyter notebooks
+.ipynb_checkpoints
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Uvicorn / FastAPI specific
+*.sqlite3
+```

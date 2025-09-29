@@ -1,7 +1,17 @@
 'use client';
-import { useEffect, useState, useRef, memo, useLayoutEffect } from 'react';
+import { useEffect, useState, useRef, memo } from 'react';
 import { Document, Page, pdfjs } from 'react-pdf';
 import { Card, CardContent } from '../ui/card';
+import { MessageSquare, Trash2, X } from 'lucide-react';
+
+// Debounce utility function
+const debounce = (func, wait) => {
+  let timeout;
+  return (...args) => {
+    clearTimeout(timeout);
+    timeout = setTimeout(() => func.apply(this, args), wait);
+  };
+};
 
 // Memoized PdfPage component
 const PdfPage = memo(
@@ -33,8 +43,11 @@ const PdfPage = memo(
             position: 'absolute',
             top: 0,
             left: 0,
-            pointerEvents: 'auto',
+            width: '100%',
+            height: '100%',
+            pointerEvents: tool === 'pen' || tool === 'eraser' ? 'auto' : 'none',
             zIndex: tool === 'pen' || tool === 'eraser' ? 10 : 1,
+            opacity: 1,
           }}
         />
       </div>
@@ -54,7 +67,6 @@ const PdfPage = memo(
   }
 );
 
-// Main PdfDocument component
 function PdfDocument({
   pdfUrl,
   numPages,
@@ -83,38 +95,48 @@ function PdfDocument({
   selectedColor,
   selectedPenColor,
   annotations,
+  deleteAnnotation,
 }) {
   const [isPanning, setIsPanning] = useState(false);
   const [panStart, setPanStart] = useState({ x: 0, y: 0 });
   const [isDrawing, setIsDrawing] = useState(false);
   const [isErasing, setIsErasing] = useState(false);
   const [lastPoint, setLastPoint] = useState(null);
+  const [activeNoteId, setActiveNoteId] = useState(null);
+  const [noteBoxPosition, setNoteBoxPosition] = useState({ x: 0, y: 0 });
   const canvasRefs = useRef({});
   const drawingDataRefs = useRef({});
+  const firstMatchForAnnotation = useRef({});
   const scrollSpeedFactor = 0.3;
-  const toolRef = useRef(tool);
 
-  // Save canvas drawing data
   const saveCanvasData = (pageNum) => {
     const canvas = canvasRefs.current[pageNum];
     if (canvas) {
       const ctx = canvas.getContext('2d');
+      if (!ctx) {
+        console.error(`No 2D context for canvas on page ${pageNum}`);
+        return;
+      }
       const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
       drawingDataRefs.current[pageNum] = imageData;
+      console.log(`Saved canvas data for page ${pageNum}`);
     }
   };
 
-  // Restore canvas drawing data
   const restoreCanvasData = (pageNum) => {
     const canvas = canvasRefs.current[pageNum];
     const savedData = drawingDataRefs.current[pageNum];
     if (canvas && savedData) {
       const ctx = canvas.getContext('2d');
+      if (!ctx) {
+        console.error(`No 2D context for canvas on page ${pageNum}`);
+        return;
+      }
       ctx.putImageData(savedData, 0, 0);
+      console.log(`Restored canvas data for page ${pageNum}`);
     }
   };
 
-  // Initialize canvas for drawing
   const initializeCanvas = (pageNum) => {
     const canvas = canvasRefs.current[pageNum];
     if (canvas) {
@@ -125,151 +147,242 @@ function PdfDocument({
         canvas.height = pdfCanvas.height;
         canvas.style.width = pdfCanvas.style.width;
         canvas.style.height = pdfCanvas.style.height;
+        canvas.style.opacity = '1';
+        canvas.style.pointerEvents = tool === 'pen' || tool === 'eraser' ? 'auto' : 'none';
 
         const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          console.error(`Failed to get 2D context for canvas on page ${pageNum}`);
+          return;
+        }
         if (!drawingDataRefs.current[pageNum]) {
           ctx.clearRect(0, 0, canvas.width, canvas.height);
         }
         restoreCanvasData(pageNum);
+        console.log(`Initialized canvas for page ${pageNum}: width=${canvas.width}, height=${canvas.height}`);
+      } else {
+        console.warn(`PDF canvas not found for page ${pageNum}`);
       }
+    } else {
+      console.warn(`Canvas not found for page ${pageNum}`);
     }
   };
 
-  // Initialize canvases on scale or tool change
   useEffect(() => {
-    const timer = setTimeout(() => {
-      Object.keys(canvasRefs.current).forEach((pageNum) => {
-        initializeCanvas(parseInt(pageNum));
-      });
-    }, 100);
-    return () => clearTimeout(timer);
+    Object.keys(canvasRefs.current).forEach((pageNum) => {
+      initializeCanvas(parseInt(pageNum));
+    });
   }, [scale, tool]);
 
   useEffect(() => {
-    toolRef.current = tool;
-  }, [tool]);
+    const container = pdfContainerRef.current;
+    if (!container) return;
 
-  // Handle mouse events for panning, pen, and eraser
-  useLayoutEffect(() => {
-  const container = pdfContainerRef.current;
-  if (!container) return;
+    let animationFrameId = null;
 
-  let animationFrameId = null;
+    const disablePointerEvents = () => {
+      const canvases = container.querySelectorAll('.react-pdf__Page__canvas');
+      const textLayers = container.querySelectorAll('.react-pdf__Page__textLayer');
+      canvases.forEach((canvas) => (canvas.style.pointerEvents = 'none'));
+      textLayers.forEach((textLayer) =>
+        (textLayer.style.pointerEvents = tool === 'highlight' || tool === 'text' ? 'auto' : 'none')
+      );
+    };
 
-  const handleMouseDown = (e) => {
-    const currentTool = toolRef.current;
-    console.log(`Mouse down with tool: ${currentTool}`);
+    const restorePointerEvents = () => {
+      const canvases = container.querySelectorAll('.react-pdf__Page__canvas');
+      const textLayers = container.querySelectorAll('.react-pdf__Page__textLayer');
+      canvases.forEach((canvas) => (canvas.style.pointerEvents = 'auto'));
+      textLayers.forEach((textLayer) => (textLayer.style.pointerEvents = 'auto'));
+    };
 
-    if (currentTool === 'hand') {
-      e.preventDefault();
-      e.stopPropagation();
-      setIsPanning(true);
-      setPanStart({ x: e.clientX, y: e.clientY });
-    } else if (currentTool === 'pen') {
-      const canvas = getCanvasForEvent(e);
-      if (canvas) {
-        setIsDrawing(true);
-        setIsErasing(false);
-        const point = getCanvasCoordinates(e, canvas);
-        setLastPoint(point);
+    const getCanvasForEvent = (e) => {
+      const pageElement = e.target.closest('[data-page-number]');
+      if (!pageElement) {
+        console.warn('No page element found for event');
+        return null;
       }
-    } else if (currentTool === 'eraser') {
-      const canvas = getCanvasForEvent(e);
-      if (canvas) {
-        setIsErasing(true);
-        setIsDrawing(false);
-        const point = getCanvasCoordinates(e, canvas);
-        eraseAtPoint(canvas, point);
-        setLastPoint(point);
+      const pageNum = parseInt(pageElement.getAttribute('data-page-number'));
+      const canvas = canvasRefs.current[pageNum];
+      if (!canvas) {
+        console.warn(`No canvas found for page ${pageNum}`);
       }
-    }
-  };
+      return canvas;
+    };
 
-  const handleMouseMove = (e) => {
-    const currentTool = toolRef.current;
+    const getCanvasCoordinates = (e, canvas) => {
+      const rect = canvas.getBoundingClientRect();
+      const x = (e.clientX - rect.left) * (canvas.width / rect.width);
+      const y = (e.clientY - rect.top) * (canvas.height / rect.height);
+      return { x, y };
+    };
 
-    if (currentTool === 'hand' && isPanning) {
-      if (animationFrameId) cancelAnimationFrame(animationFrameId);
-      animationFrameId = requestAnimationFrame(() => {
-        const dx = (panStart.x - e.clientX) * scrollSpeedFactor;
-        const dy = (panStart.y - e.clientY) * scrollSpeedFactor;
-        if (scrollMode === 'vertical') {
-          container.scrollLeft += dx;
-          container.scrollTop += dy;
-        } else if (scrollMode === 'horizontal') {
-          container.scrollLeft += dx;
-          container.scrollTop = 0;
-        } else if (scrollMode === 'wrapped') {
-          container.scrollLeft += dx;
-          container.scrollTop += dy;
-        }
+    const drawLine = (ctx, start, end) => {
+      if (!ctx) {
+        console.warn('No canvas context available for drawing');
+        return;
+      }
+      ctx.beginPath();
+      ctx.moveTo(start.x, start.y);
+      ctx.lineTo(end.x, end.y);
+      ctx.strokeStyle = selectedPenColor || '#87CEEB';
+      ctx.lineWidth = 2;
+      ctx.lineCap = 'round';
+      ctx.stroke();
+      console.log(`Drawing line from (${start.x}, ${start.y}) to (${end.x}, ${end.y}) with color ${ctx.strokeStyle}`);
+    };
+
+    const eraseAtPoint = (canvas, point) => {
+      const ctx = canvas.getContext('2d');
+      if (!ctx) {
+        console.warn('No canvas context available for erasing');
+        return;
+      }
+      const eraseRadius = 10;
+      ctx.globalCompositeOperation = 'destination-out';
+      ctx.beginPath();
+      ctx.arc(point.x, point.y, eraseRadius, 0, 2 * Math.PI);
+      ctx.fill();
+      ctx.globalCompositeOperation = 'source-over';
+    };
+
+    const eraseLineArea = (canvas, start, end) => {
+      const ctx = canvas.getContext('2d');
+      if (!ctx) {
+        console.warn('No canvas context available for erasing');
+        return;
+      }
+      const eraseRadius = 10;
+      ctx.globalCompositeOperation = 'destination-out';
+      ctx.beginPath();
+      ctx.moveTo(start.x, start.y);
+      ctx.lineTo(end.x, end.y);
+      ctx.lineWidth = eraseRadius * 2;
+      ctx.lineCap = 'round';
+      ctx.stroke();
+      ctx.globalCompositeOperation = 'source-over';
+    };
+
+    const handleMouseDown = (e) => {
+      console.log(`Mouse down with tool: ${tool}, clientX: ${e.clientX}, clientY: ${e.clientY}`);
+      if (tool === 'hand') {
+        e.preventDefault();
+        e.stopPropagation();
+        setIsPanning(true);
         setPanStart({ x: e.clientX, y: e.clientY });
-      });
-    } else if (currentTool === 'pen' && isDrawing) {
-      const canvas = getCanvasForEvent(e);
-      if (canvas && lastPoint) {
-        const ctx = canvas.getContext('2d');
-        const currentPoint = getCanvasCoordinates(e, canvas);
-        drawLine(ctx, lastPoint, currentPoint);
-        setLastPoint(currentPoint);
+      } else if (tool === 'pen') {
+        const canvas = getCanvasForEvent(e);
+        if (canvas) {
+          setIsDrawing(true);
+          setIsErasing(false);
+          const point = getCanvasCoordinates(e, canvas);
+          setLastPoint(point);
+          console.log(`Pen tool started at (${point.x}, ${point.y}) on page ${canvas.closest('[data-page-number]').getAttribute('data-page-number')}`);
+        }
+      } else if (tool === 'eraser') {
+        const canvas = getCanvasForEvent(e);
+        if (canvas) {
+          setIsErasing(true);
+          setIsDrawing(false);
+          const point = getCanvasCoordinates(e, canvas);
+          eraseAtPoint(canvas, point);
+          setLastPoint(point);
+          console.log(`Eraser tool started at (${point.x}, ${point.y}) on page ${canvas.closest('[data-page-number]').getAttribute('data-page-number')}`);
+        }
       }
-    } else if (currentTool === 'eraser' && isErasing) {
-      const canvas = getCanvasForEvent(e);
-      if (canvas && lastPoint) {
-        const currentPoint = getCanvasCoordinates(e, canvas);
-        eraseLineArea(canvas, lastPoint, currentPoint);
-        setLastPoint(currentPoint);
+    };
+
+    const handleMouseMove = (e) => {
+      if (tool === 'hand' && isPanning) {
+        if (animationFrameId) cancelAnimationFrame(animationFrameId);
+        animationFrameId = requestAnimationFrame(() => {
+          const dx = (panStart.x - e.clientX) * scrollSpeedFactor;
+          const dy = (panStart.y - e.clientY) * scrollSpeedFactor;
+          if (scrollMode === 'vertical') {
+            container.scrollLeft += dx;
+            container.scrollTop += dy;
+          } else if (scrollMode === 'horizontal') {
+            container.scrollLeft += dx;
+            container.scrollTop = 0;
+          } else if (scrollMode === 'wrapped') {
+            container.scrollLeft += dx;
+            container.scrollTop += dy;
+          }
+          setPanStart({ x: e.clientX, y: e.clientY });
+          console.log(`Panning: dx=${dx}, dy=${dy}, scrollLeft=${container.scrollLeft}, scrollTop=${container.scrollTop}`);
+        });
+      } else if (tool === 'pen' && isDrawing) {
+        const canvas = getCanvasForEvent(e);
+        if (canvas && lastPoint) {
+          const ctx = canvas.getContext('2d');
+          const currentPoint = getCanvasCoordinates(e, canvas);
+          drawLine(ctx, lastPoint, currentPoint);
+          setLastPoint(currentPoint);
+        }
+      } else if (tool === 'eraser' && isErasing) {
+        const canvas = getCanvasForEvent(e);
+        if (canvas && lastPoint) {
+          const currentPoint = getCanvasCoordinates(e, canvas);
+          eraseLineArea(canvas, lastPoint, currentPoint);
+          setLastPoint(currentPoint);
+        }
       }
+    };
+
+    const handleMouseUp = (e) => {
+      console.log(`Mouse up with tool: ${tool}, clientX: ${e.clientX}, clientY: ${e.clientY}`);
+      if (tool === 'hand') {
+        setIsPanning(false);
+        if (animationFrameId) cancelAnimationFrame(animationFrameId);
+      } else if (tool === 'pen') {
+        if (isDrawing) {
+          const canvas = getCanvasForEvent(e);
+          if (canvas) {
+            const pageNum = parseInt(canvas.closest('[data-page-number]').getAttribute('data-page-number'));
+            saveCanvasData(pageNum);
+          }
+        }
+        setIsDrawing(false);
+        setLastPoint(null);
+      } else if (tool === 'eraser') {
+        if (isErasing) {
+          const canvas = getCanvasForEvent(e);
+          if (canvas) {
+            const pageNum = parseInt(canvas.closest('[data-page-number]').getAttribute('data-page-number'));
+            saveCanvasData(pageNum);
+          }
+        }
+        setIsErasing(false);
+        setLastPoint(null);
+      }
+    };
+
+    const debouncedHandleMouseUp = debounce(handleMouseUp, 100);
+
+    if (tool === 'hand' || tool === 'pen' || tool === 'eraser') {
+      container.style.userSelect = 'none';
+      disablePointerEvents();
+    } else {
+      container.style.userSelect = 'auto';
+      restorePointerEvents();
     }
-  };
 
-  const handleMouseUp = (e) => {
-    const currentTool = toolRef.current;
-    console.log(`Mouse up with tool: ${currentTool}`);
+    container.addEventListener('mousedown', handleMouseDown, { capture: true });
+    container.addEventListener('mousemove', handleMouseMove, { capture: true });
+    container.addEventListener('mouseup', debouncedHandleMouseUp, { capture: true });
+    container.addEventListener('mouseleave', debouncedHandleMouseUp, { capture: true });
 
-    if (currentTool === 'hand') {
-      setIsPanning(false);
+    return () => {
+      container.style.userSelect = 'auto';
+      restorePointerEvents();
+      container.removeEventListener('mousedown', handleMouseDown, { capture: true });
+      container.removeEventListener('mousemove', handleMouseMove, { capture: true });
+      container.removeEventListener('mouseup', debouncedHandleMouseUp, { capture: true });
+      container.removeEventListener('mouseleave', debouncedHandleMouseUp, { capture: true });
       if (animationFrameId) cancelAnimationFrame(animationFrameId);
-    } else if (currentTool === 'pen') {
-      if (isDrawing) {
-        const canvas = getCanvasForEvent(e);
-        if (canvas) {
-          const pageNum = parseInt(canvas.closest('[data-page-number]').getAttribute('data-page-number'));
-          saveCanvasData(pageNum);
-        }
-      }
-      setIsDrawing(false);
-      setLastPoint(null);
-    } else if (currentTool === 'eraser') {
-      if (isErasing) {
-        const canvas = getCanvasForEvent(e);
-        if (canvas) {
-          const pageNum = parseInt(canvas.closest('[data-page-number]').getAttribute('data-page-number'));
-          saveCanvasData(pageNum);
-        }
-      }
-      setIsErasing(false);
-      setLastPoint(null);
-    }
-  };
+    };
+  }, [tool, scrollMode, selectedPenColor, isPanning, isDrawing, isErasing, lastPoint, pdfContainerRef]);
 
-  // Attach listeners
-  container.addEventListener('mousedown', handleMouseDown, { capture: true });
-  container.addEventListener('mousemove', handleMouseMove, { capture: true });
-  container.addEventListener('mouseup', handleMouseUp, { capture: true });
-  container.addEventListener('mouseleave', handleMouseUp, { capture: true });
-
-  return () => {
-    container.removeEventListener('mousedown', handleMouseDown, { capture: true });
-    container.removeEventListener('mousemove', handleMouseMove, { capture: true });
-    container.removeEventListener('mouseup', handleMouseUp, { capture: true });
-    container.removeEventListener('mouseleave', handleMouseUp, { capture: true });
-    if (animationFrameId) cancelAnimationFrame(animationFrameId);
-  };
-}, [scrollMode]);
-
-
-  // Handle page render success and text extraction
   const onPageRenderSuccess = async (pageNumber) => {
     try {
       const page = await pdfjs
@@ -286,17 +399,17 @@ function PdfDocument({
         setHasTextLayer(true);
       }
       setRenderedPages((prev) => ({ ...prev, [pageNumber]: true }));
-
-      setTimeout(() => {
-        initializeCanvas(pageNumber);
-      }, 0);
+      initializeCanvas(pageNumber);
+      // Initialize firstMatchForAnnotation for the page only if it doesn't exist
+      if (!firstMatchForAnnotation.current[pageNumber]) {
+        firstMatchForAnnotation.current[pageNumber] = {};
+      }
     } catch (error) {
       console.error('Error extracting text:', error);
       setHasTextLayer(false);
     }
   };
 
-  // Search text in PDF
   const searchInPDF = (text) => {
     if (!text) {
       setSearchResults([]);
@@ -342,12 +455,79 @@ function PdfDocument({
     }
   };
 
+  const toggleNoteBox = (annotationId, event) => {
+    const noteIcon = event.target;
+    if (!noteIcon) return;
+
+    if (activeNoteId === annotationId) {
+      setActiveNoteId(null);
+      setNoteBoxPosition({ x: 0, y: 0 });
+      console.log(`Closed note-box for annotation ${annotationId}`);
+    } else {
+      const container = pdfContainerRef.current;
+      if (!container) return;
+      const containerRect = container.getBoundingClientRect();
+      const rect = noteIcon.getBoundingClientRect();
+      const scrollTop = container.scrollTop;
+      const scrollLeft = container.scrollLeft;
+      const containerWidth = container.clientWidth;
+      const containerHeight = container.clientHeight;
+      const noteBoxWidth = 200; // Matches note-box width in CSS
+      const noteBoxHeight = 200; // Approximate max note-box height
+      const offsetX = 20; // Offset from the note-icon
+      const offsetY = 10; // Slight vertical offset
+
+      // Calculate position relative to container content
+      let x = scrollLeft + (rect.right - containerRect.left) + offsetX;
+      let y = scrollTop + (rect.top - containerRect.top) + offsetY;
+
+      // Horizontal boundary check and flip if necessary
+      if (x + noteBoxWidth > scrollLeft + containerWidth) {
+        x = scrollLeft + (rect.left - containerRect.left) - noteBoxWidth - offsetX;
+      }
+      if (x < scrollLeft) {
+        x = scrollLeft + offsetX;
+      }
+
+      // Vertical boundary check and flip above if necessary
+      if (y + noteBoxHeight > scrollTop + containerHeight) {
+        y = scrollTop + (rect.bottom - containerRect.top) - noteBoxHeight - offsetY;
+      }
+      if (y < scrollTop) {
+        y = scrollTop + offsetY;
+      }
+
+      setActiveNoteId(annotationId);
+      setNoteBoxPosition({ x, y });
+      console.log(`Opening note-box for annotation ${annotationId} at position (${x}, ${y})`);
+    }
+  };
+
   useEffect(() => {
     searchInPDF(searchText);
   }, [searchText, matchCase]);
 
-  console.log("Current tool in PdfDocument:", tool);
+  useEffect(() => {
+    const handleNoteIconClick = (e) => {
+      if (e.target.classList.contains('note-icon')) {
+        const annotationId = e.target.getAttribute('data-annotation-id');
+        toggleNoteBox(annotationId, e);
+      }
+    };
 
+    const container = pdfContainerRef.current;
+    if (container) {
+      container.addEventListener('click', handleNoteIconClick);
+    }
+
+    return () => {
+      if (container) {
+        container.removeEventListener('click', handleNoteIconClick);
+      }
+    };
+  }, []);
+
+  console.log('PdfDocument props:', { tool, selectedPenColor });
 
   return (
     <div
@@ -370,6 +550,7 @@ function PdfDocument({
       style={{
         maxHeight: 'calc(100vh - 60px)',
         backgroundColor: '#e5e7eb',
+        position: 'relative',
         ...(scrollMode === 'horizontal' ? { overflowY: 'hidden' } : {}),
         ...(scrollMode === 'wrapped' ? { justifyContent: 'center', gap: '1rem' } : {}),
       }}
@@ -434,10 +615,9 @@ function PdfDocument({
                   isRendered={isRendered}
                   pageAnnotations={pageAnnotations}
                   onRenderSuccess={onPageRenderSuccess}
-                  customTextRenderer={({ str }) => {
+                  customTextRenderer={({ str, itemIndex }) => {
                     let result = str;
 
-                    // Handle search highlights
                     if (searchText && searchResults.length > 0) {
                       const searchTextForMatch = matchCase ? searchText : searchText.toLowerCase();
                       const parts = [];
@@ -491,7 +671,6 @@ function PdfDocument({
                       }
                     }
 
-                    // Handle annotations with notes
                     pageAnnotations.forEach((ann) => {
                       const hasNote = typeof ann.note === 'string' && ann.note.trim().length > 0;
                       if (
@@ -501,9 +680,38 @@ function PdfDocument({
                         /\w/.test(str) &&
                         str.trim().length > 0
                       ) {
-                        console.log(`Highlighting text: "${str}" with annotation:`, ann);
-                        const style = `background-color: ${ann.color}; color: black;`;
-                        result = `<span class="highlight-with-note" style="${style}" data-annotation-id="${ann.id}">${str}</span>`;
+                        const pageText = textLayerRef.current[pageNum] || '';
+                        const normalizedStr = str.trim().toLowerCase();
+                        const normalizedAnnText = ann.normalizedText || ann.text.trim().toLowerCase();
+                        const absoluteIndex = ann.startIndex || pageText.indexOf(str);
+                        // Check if this is the correct text fragment for the annotation
+                        const isStartOfAnnotation =
+                          absoluteIndex !== -1 &&
+                          normalizedAnnText.includes(normalizedStr) &&
+                          (!firstMatchForAnnotation.current[pageNum]?.[ann.id] ||
+                            firstMatchForAnnotation.current[pageNum][ann.id].index === absoluteIndex);
+
+                        if (isStartOfAnnotation) {
+                          if (!firstMatchForAnnotation.current[pageNum]) {
+                            firstMatchForAnnotation.current[pageNum] = {};
+                          }
+                          firstMatchForAnnotation.current[pageNum][ann.id] = { index: absoluteIndex };
+                          console.log(
+                            `Setting first match for annotation ${ann.id} on page ${pageNum} at index ${absoluteIndex}`
+                          );
+                        }
+
+                        console.log(
+                          `Processing annotation for text: "${str}", absoluteIndex: ${absoluteIndex}, ann.id: ${ann.id}, isStart: ${isStartOfAnnotation}`,
+                          ann
+                        );
+
+                        const style = `background-color: ${ann.color}; color: black; position: relative;`;
+                        if (isStartOfAnnotation) {
+                          result = `<span class="highlight-with-note" style="${style}" data-annotation-id="${ann.id}"><span class="note-icon" data-annotation-id="${ann.id}" style="display: inline-block; width: 16px; height: 16px; margin-right: 4px; cursor: pointer;"></span>${str}</span>`;
+                        } else {
+                          result = `<span class="highlight-with-note" style="${style}" data-annotation-id="${ann.id}">${str}</span>`;
+                        }
                       }
                     });
 
@@ -517,12 +725,130 @@ function PdfDocument({
             );
           })}
         </Document>
+        {activeNoteId && (() => {
+          const ann = annotations.find(a => a.id === activeNoteId);
+          if (!ann) return null;
+          return (
+            <div
+              className="note-overlay"
+              style={{
+                position: 'absolute',
+                top: noteBoxPosition.y,
+                left: noteBoxPosition.x,
+                zIndex: 200,
+              }}
+            >
+              <div className="note-box">
+                <div className="note-header">
+                  <span className="note-title">Note</span>
+                  <div className="note-actions">
+                    <button
+                      onClick={() => {
+                        deleteAnnotation(activeNoteId);
+                        setActiveNoteId(null);
+                        setNoteBoxPosition({ x: 0, y: 0 });
+                      }}
+                      className="note-delete-btn"
+                      title="Delete Note"
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                    <button
+                      onClick={() => {
+                        setActiveNoteId(null);
+                        setNoteBoxPosition({ x: 0, y: 0 });
+                      }}
+                      className="note-close-btn"
+                      title="Close Note"
+                    >
+                      <X size={16} />
+                    </button>
+                  </div>
+                </div>
+                <div className="note-content">
+                  <p>{ann.note}</p>
+                </div>
+              </div>
+            </div>
+          );
+        })()}
       </div>
+      <style>
+        {`
+          .note-icon {
+            background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="blue" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16v12H8l-4 4V4z"/></svg>') no-repeat center;
+            background-size: contain;
+            vertical-align: middle;
+          }
+          .note-overlay {
+            position: absolute;
+            pointer-events: auto;
+          }
+          .note-box {
+            background-color: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            width: 200px;
+            overflow: hidden;
+            font-family: Arial, sans-serif;
+            pointer-events: auto;
+          }
+          .note-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background-color: #f1f5f9;
+            padding: 8px 12px;
+            border-bottom: 1px solid #e2e8f0;
+          }
+          .note-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: #1f2937;
+          }
+          .note-actions {
+            display: flex;
+            gap: 4px;
+          }
+          .note-delete-btn,
+          .note-close-btn {
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 2px;
+            border-radius: 4px;
+            transition: background-color 0.2s;
+          }
+          .note-delete-btn {
+            color: #ef4444;
+          }
+          .note-delete-btn:hover {
+            background-color: #fee2e2;
+          }
+          .note-close-btn {
+            color: #6b7280;
+          }
+          .note-close-btn:hover {
+            background-color: #e5e7eb;
+          }
+          .note-content {
+            padding: 12px;
+            max-height: 200px;
+            overflow-y: auto;
+          }
+          .note-content p {
+            margin: 0;
+            font-size: 13px;       
+            color: #374151;
+            line-height: 1.5;
+          }
+        `}
+      </style>
     </div>
-  );    
-}  
+  );
+}
 
-// Explicit default export with memoization
 export default memo(PdfDocument, (prevProps, nextProps) => {
   return (
     prevProps.pdfUrl === nextProps.pdfUrl &&
@@ -533,8 +859,10 @@ export default memo(PdfDocument, (prevProps, nextProps) => {
     prevProps.matchCase === nextProps.matchCase &&
     prevProps.highlightAll === nextProps.highlightAll &&
     prevProps.selectedColor === nextProps.selectedColor &&
+    prevProps.selectedPenColor === nextProps.selectedPenColor &&    
     prevProps.scrollMode === nextProps.scrollMode &&
+    prevProps.tool === nextProps.tool &&
     prevProps.annotations === nextProps.annotations &&
-    prevProps.renderedPages === nextProps.renderedPages 
+    prevProps.renderedPages === nextProps.renderedPages
   );
 });

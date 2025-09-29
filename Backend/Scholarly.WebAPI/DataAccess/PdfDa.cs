@@ -1,4 +1,5 @@
 ﻿using NLog;
+using Pipelines.Sockets.Unofficial.Arenas;
 using Scholarly.DataAccess;
 using Scholarly.Entity;
 using Scholarly.WebAPI.Model;
@@ -22,6 +23,7 @@ namespace Scholarly.WebAPI.DataAccess
         List<Projects> LoadProjects(SWBDBContext swbDBContext, Logger logger, int UserId);
         bool UpdateProject(SWBDBContext swbDBContext, Logger logger, Projects Project, int UserId);
         bool DeleteProject(SWBDBContext swbDBContext, Logger logger, int ProjectId, int UserId);
+        Projects GetProject(SWBDBContext swbDBContext, Logger logger, int ProjectId);
     }
     public class PdfDa : IPdfDa
     {
@@ -376,6 +378,26 @@ namespace Scholarly.WebAPI.DataAccess
                 logger.Error(exception.Message);
             }
             return flag;
+        }
+
+        public Projects GetProject(SWBDBContext swbDBContext, Logger logger, int ProjectId)
+        {
+            try
+            {
+                return swbDBContext.tbl_projects
+                        .Where(x => x.project_id == ProjectId)
+                        .Select(x => new Projects
+                        {
+                            ProjectId = x.project_id,
+                            Title = x.title,
+                            Description = x.description
+                        }).FirstOrDefault();
+            }
+            catch (Exception exception)
+            {
+                logger.Error(exception.Message);
+                return null;
+            }
         }
     }
 }

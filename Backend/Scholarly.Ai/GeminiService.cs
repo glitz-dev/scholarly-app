@@ -5,8 +5,12 @@ using Newtonsoft.Json;
 using NLog;
 using Npgsql;
 using Scholarly.DataAccess;
+using System.Net.Http;
+using System;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Nodes;
+using System.Xml.Linq;
 
 public interface IGeminiService
 {
@@ -19,7 +23,10 @@ public class GeminiService : IGeminiService
     private static Logger _logger;
     public GeminiService(SWBDBContext swbDBContext)
     {
-        _httpClient = new HttpClient();
+        _httpClient = new HttpClient() {
+            Timeout = TimeSpan.FromMinutes(10)
+        };
+       
     }
 
     public async Task SummarizeTextAsync(Logger logger, string _connectionStrings, string pdfPath, string apiKey, int pdfSummaryId)
@@ -48,6 +55,7 @@ public class GeminiService : IGeminiService
                 };
 
                 var content = new StringContent(System.Text.Json.JsonSerializer.Serialize(requestBody), Encoding.UTF8, "application/json");
+
                 var response = await _httpClient.PostAsync(endpoint, content);
                 response.EnsureSuccessStatusCode();
 
@@ -82,82 +90,81 @@ public class GeminiService : IGeminiService
 
     public async Task SummarizeText_QA_Async(Logger logger, string _connectionStrings, string hostedApp, int pdfSummaryId, int upload_id)
     {
-            try
+        try
+        {
+            JsonObject jo = new()
             {
-                var requestBody = new
-                {
-                    contents = new[]
-                   {
-                            new
-                            {
-                                parts = new[]
-                                {
-                                    new { storageKey = "thesis.pdf",
-                                          projectId= "abc",
-                                          documentId= "doc1",
-                                          ocr= true,
-                                          blip= false,
-                                          userId= "test",
-                                          password="test",
-                                          useEncryption=false
-                                        }
-                                }
-                            }
-                        }
-                };
-                var content = new StringContent(System.Text.Json.JsonSerializer.Serialize(requestBody), Encoding.UTF8, "application/json");
-                var response = await _httpClient.PostAsync(hostedApp, content);
-                //response.EnsureSuccessStatusCode();
-                if (!response.IsSuccessStatusCode)
-                {
-                    var responseBody = await response.Content.ReadAsStringAsync();
-                    Console.WriteLine($"Status: {response.StatusCode}");
-                    Console.WriteLine("Response Body:");
-                    Console.WriteLine(responseBody);
-                }
-                  var responseContent = await response.Content.ReadAsStringAsync();
+                { "storageKey", JsonValue.Create("thesis.pdf") },
+                { "projectId", JsonValue.Create("abc") },
+                { "documentId", JsonValue.Create("doc1") },
+                { "ocr", JsonValue.Create(true) },
+                { "blip", JsonValue.Create(false) },
+                { "userId", JsonValue.Create("test") },
+                { "password", JsonValue.Create("test") },
+                { "useEncryption", JsonValue.Create(false) }
+            };
 
-                using var jsonDoc = JsonDocument.Parse(responseContent);
-                var result = jsonDoc.RootElement;
-                 string summary_result, qa_result;
-                if (result.TryGetProperty("text_analysis", out JsonElement textAnalysis) && textAnalysis.TryGetProperty("summary", out JsonElement Summary))
+            var content = new StringContent(System.Text.Json.JsonSerializer.Serialize(jo), Encoding.UTF8, "application/json");
+
+
+            //using var cts = new CancellationTokenSource(TimeSpan.FromMinutes(5));
+            var response = await _httpClient.PostAsync(hostedApp, content);
+            if (!response.IsSuccessStatusCode)
+            {
+                var responseBody = await response.Content.ReadAsStringAsync();
+                Console.WriteLine($"Status: {response.StatusCode}");
+                Console.WriteLine("Response Body:");
+                Console.WriteLine(responseBody);
+            }
+            var responseContent = await response.Content.ReadAsStringAsync();
+            using var jsonDoc = JsonDocument.Parse(responseContent);
+            var result = jsonDoc.RootElement;
+            string summary_result, qa_result;
+            if (result.TryGetProperty("text_analysis", out JsonElement textAnalysis) && textAnalysis.TryGetProperty("summary", out JsonElement Summary))
+            {
+                summary_result = Summary.GetString() ?? "";
+                if (!string.IsNullOrWhiteSpace(summary_result))
                 {
-                    summary_result = Summary.GetString() ?? "";
-                    if (!string.IsNullOrWhiteSpace(summary_result))
+                    var sql = "UPDATE tbl_pdf_summary_list SET summary = @summary WHERE pdf_summary_id = @id;";
+                    using var conn = new NpgsqlConnection(_connectionStrings);
                     {
-                        var sql = "UPDATE tbl_pdf_summary_list SET summary = @summary WHERE pdf_summary_id = @id;";
-                        using var conn = new NpgsqlConnection(_connectionStrings);
-                        {
-                            conn.Open();
-                            using var cmd = new NpgsqlCommand(sql, conn);
-                            cmd.Parameters.AddWithValue("summary", NpgsqlTypes.NpgsqlDbType.Jsonb, JsonConvert.SerializeObject(summary_result));
-                            cmd.Parameters.AddWithValue("id", pdfSummaryId);
-                            cmd.ExecuteNonQuery();
-                        }
+                        conn.Open();
+                        using var cmd = new NpgsqlCommand(sql, conn);
+                        cmd.Parameters.AddWithValue("summary", NpgsqlTypes.NpgsqlDbType.Jsonb, JsonConvert.SerializeObject(summary_result));
+                        cmd.Parameters.AddWithValue("id", pdfSummaryId);
+                        cmd.ExecuteNonQuery();
                     }
                 }
+            }
 
-                if (result.TryGetProperty("question_responses", out JsonElement QA))
-                {
-                    qa_result = QA.GetString() ?? "";
-                    if (!string.IsNullOrWhiteSpace(qa_result))
-                    {
-                        var sql = "UPDATE tbl_pdf_uploads SET qa = @qa WHERE pdf_uploaded_id = @id;";
-                        using var conn = new NpgsqlConnection(_connectionStrings);
-                        {
-                            conn.Open();
-                            using var cmd = new NpgsqlCommand(sql, conn);
-                            cmd.Parameters.AddWithValue("qa", NpgsqlTypes.NpgsqlDbType.Jsonb, JsonConvert.SerializeObject(qa_result));
-                            cmd.Parameters.AddWithValue("id", upload_id);
-                            cmd.ExecuteNonQuery();
-                        }
-                    }
-                } 
-            }
-            catch (Exception ex)
+            if (result.TryGetProperty("question_responses", out JsonElement QA) && QA.ValueKind == JsonValueKind.Object)
             {
-                logger.Error(ex);
+                var qaJson = QA.GetRawText();
+                //JsonElement qaResult = QA;
+
+                if (!string.IsNullOrWhiteSpace(qaJson))
+                {
+                    var sql = "UPDATE tbl_pdf_uploads SET qa = @qa WHERE pdf_uploaded_id = @id;";
+                    using var conn = new NpgsqlConnection(_connectionStrings);
+                    {
+                        conn.Open();
+                        using var cmd = new NpgsqlCommand(sql, conn);
+                        cmd.Parameters.AddWithValue("qa", NpgsqlTypes.NpgsqlDbType.Jsonb, JsonConvert.SerializeObject(qaJson));
+                        cmd.Parameters.AddWithValue("id", upload_id);
+                        cmd.ExecuteNonQuery();
+                    }
+                }
             }
-        
+
+        }
+        catch (Exception ex)
+        {
+            logger.Error(ex);
+        }
+        finally
+        {
+            _httpClient.Dispose();
+        }
+
     }
 }

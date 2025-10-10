@@ -321,7 +321,7 @@ namespace Scholarly.WebAPI.Controllers
                                     Task.Run(async () =>
                                     {
                                         //_GeminiService.SummarizeTextAsync(_logger, _ConnectionStrings,tBLPDFUPLOAD1.pdf_saved_path, AI_Key, record.pdf_summary_id);
-                                          _GeminiService.SummarizeText_QA_Async(_logger, _ConnectionStrings, AI_HostedApp, record.pdf_summary_id, tBLPDFUPLOAD1.pdf_uploaded_id);
+                                        _GeminiService.SummarizeText_QA_Async(_logger, _ConnectionStrings, AI_HostedApp, record.pdf_summary_id, tBLPDFUPLOAD1.pdf_uploaded_id);
                                     });
 
                                     Task.Run(async () =>

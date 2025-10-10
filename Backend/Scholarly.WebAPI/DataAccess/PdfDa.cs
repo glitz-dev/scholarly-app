@@ -307,6 +307,8 @@ namespace Scholarly.WebAPI.DataAccess
                               ProjectId = x.project_id,
                               Title = x.title,
                               Description = x.description,
+                              CreatedOn =x.created_date,
+                              ModifiedOn = x.updated_date,
                               project_id = x.project_id,
                           }).ToList();
             }

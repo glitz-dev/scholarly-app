@@ -1,5 +1,5 @@
 'use client';
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Document, Page } from 'react-pdf';
 
 const PdfSidebar = ({
@@ -13,26 +13,42 @@ const PdfSidebar = ({
   searchText,
 }) => {
   const thumbnailScale = 0.2;
+  const [isMobile, setIsMobile] = useState(false);
+
+  // Detect mobile screen size
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768); // Tailwind's 'md' breakpoint
+    };
+
+    checkMobile(); // Initial check
+    window.addEventListener('resize', checkMobile);
+
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   const onThumbnailRenderSuccess = (pageNumber) => {
     setThumbnailRendered((prev) => ({ ...prev, [pageNumber]: true }));
   };
 
+  // Override showThumbnails to false on mobile
+  const shouldShowThumbnails = isMobile ? false : showThumbnails;
+
   return (
     <div
-      className={`bg-gray-300 dark:bg-gray-700 h-full items-center overflow-y-auto transform transition-transform duration-300 ease-in-out`}
+      className='bg-gray-300 dark:bg-gray-700 h-full items-center overflow-y-auto transform transition-transform duration-300 ease-in-out'
       style={{
-        transform: showThumbnails ? 'translateX(0)' : 'translateX(-100%)',
+        transform: shouldShowThumbnails ? 'translateX(0)' : 'translateX(-100%)',
         width: '12rem',
         maxHeight: '100vh',
         position: 'absolute',
         left: 0,
         top: 0,
         zIndex: 20,
-        boxShadow: showThumbnails ? '2px 0 10px rgba(0,0,0,0.1)' : 'none',
+        boxShadow: shouldShowThumbnails ? '2px 0 10px rgba(0,0,0,0.1)' : 'none',
       }}
     >
-      {showThumbnails && (
+      {shouldShowThumbnails && (
         <div className="flex justify-center items-center">
           <Document
             file={decodeURIComponent(pdfUrl)}

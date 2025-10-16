@@ -69,13 +69,13 @@ const RegisterPage = () => {
   };
 
   return (
-    <div className="w-full md:w-1/2 p-3">
-      <h1 className="text-black text-2xl font-semibold text-center mb-1 font-geist tracking-tight">Create Your Account</h1>
+    <div className="w-full h-screen md:w-1/2 md:h-auto py-7 px-4 dark:bg-gradient-to-r from-gray-700 via-gray-700 to-gray-800 dark:md:rounded-xl">
+      <h1 className="text-black text-2xl font-semibold text-center mb-1 font-geist tracking-tight dark:text-gray-200">Create Your Account</h1>
       <p className="text-center font-thin text-xs mb-3 tracking-tight">Join Scholarly to collaborate</p>
       <form className="flex flex-col space-y-2 text-black" onSubmit={handleRegister}>
         <div className="flex flex-row gap-2">
-          <div className="w-1/2">
-            <label htmlFor="firstName" className="block text-xs font-medium text-gray-700">First Name</label>
+          <div className="w-1/2 mb-5">
+            <label htmlFor="firstName" className="block text-xs font-medium text-gray-700 dark:text-gray-200">First Name</label>
             <input
               type="text"
               id="firstName"
@@ -85,10 +85,10 @@ const RegisterPage = () => {
               onChange={handleChange}
               placeholder="First Name"
               required
-            />
+            />      
           </div>
           <div className="w-1/2">
-            <label htmlFor="lastName" className="block text-xs font-medium text-gray-700">Last Name</label>
+            <label htmlFor="lastName" className="block text-xs font-medium text-gray-700 dark:text-gray-200">Last Name</label>
             <input
               type="text"
               id="lastName"
@@ -102,12 +102,12 @@ const RegisterPage = () => {
           </div>
         </div>
         <div>
-          <label htmlFor="emailID" className="block text-xs font-medium text-gray-700">Email</label>
+          <label htmlFor="emailID" className="block text-xs font-medium text-gray-700 dark:text-gray-200">Email</label>
           <input
             type="email"
             id="emailID"
             name="emailID"
-            className="mt-0.5 block w-full border border-gray-300 rounded-md shadow-sm focus:outline-none text-sm p-2 bg-white text-black"
+            className="mt-0.5 block w-full border border-gray-300 rounded-md shadow-sm focus:outline-none text-sm p-2 bg-white text-black mb-5"
             value={formData.emailID}
             onChange={handleChange}
             placeholder="Email Address"
@@ -115,8 +115,8 @@ const RegisterPage = () => {
           />
         </div>
         <div>
-          <label htmlFor="password" className="block text-xs font-medium text-gray-700">Password</label>
-          <div className="relative w-full">
+          <label htmlFor="password" className="block text-xs font-medium text-gray-700 dark:text-gray-200">Password</label>
+          <div className="relative w-full mb-5">
             <input
               type={showPassword ? "text" : "password"}
               id="password"
@@ -137,89 +137,17 @@ const RegisterPage = () => {
           </div>
           {passwordError && <p className="text-red-500 text-xs mt-0.5">{passwordError}</p>}
         </div>
-        <div className="flex flex-row gap-2">
-          <div className="w-1/2">
-            <label htmlFor="gender" className="block text-xs font-medium text-gray-700">Gender</label>
-            <select
-              id="gender"
-              name="gender"
-              className="mt-0.5 block w-full border border-gray-300 rounded-md shadow-sm focus:outline-none text-sm p-2 bg-white text-black"
-              value={formData.gender}
-              onChange={handleChange}
-              required
-            >
-              <option value="">Select Gender</option>
-              <option value="M">Male</option>
-              <option value="F">Female</option>
-              <option value="O">Other</option>
-            </select>
-          </div>
-          <div className="w-1/2">
-            <label htmlFor="currentPosition" className="block text-xs font-medium text-gray-700">Position</label>
-            <input
-              type="text"
-              id="currentPosition"
-              name="currentPosition"
-              className="mt-0.5 block w-full border border-gray-300 rounded-md shadow-sm focus:outline-none text-sm p-2 bg-white text-black"
-              value={formData.currentPosition}
-              onChange={handleChange}
-              placeholder="Position"
-              required
-            />
-          </div>
-        </div>
-        <div className="flex flex-row gap-2">
-          <div className="w-1/2">
-            <label htmlFor="currentLocation" className="block text-xs font-medium text-gray-700">Location</label>
-            <input
-              type="text"
-              id="currentLocation"
-              name="currentLocation"
-              className="mt-0.5 block w-full border border-gray-300 rounded-md shadow-sm focus:outline-none text-sm p-2 bg-white text-black"
-              value={formData.currentLocation}
-              onChange={handleChange}
-              placeholder="Location"
-              required
-            />
-          </div>
-          <div className="w-1/2">
-            <label htmlFor="specialzation" className="block text-xs font-medium text-gray-700">Specialization</label>
-            <input
-              type="text"
-              id="specialzation"
-              name="specialzation"
-              className="mt-0.5 block w-full border border-gray-300 rounded-md shadow-sm focus:outline-none text-sm p-2 bg-white text-black"
-              value={formData.specialzation}
-              onChange={handleChange}
-              placeholder="Specialization"
-              required
-            />
-          </div>
-        </div>
-        <div className="w-full">
-          <label htmlFor="university" className="block text-xs font-medium text-gray-700">University</label>
-          <input
-            type="text"
-            id="university"
-            name="university"
-            className="mt-0.5 block w-full border border-gray-300 rounded-md shadow-sm focus:outline-none text-sm p-2 bg-white text-black"
-            value={formData.university}
-            onChange={handleChange}
-            placeholder="University"
-            required
-          />
-        </div>
-        <CustomButton variant='purpleGradient' loading={isSubmitting}>Register</CustomButton>
+        <CustomButton variant='purpleGradient' loading={isSubmitting} className="dark:from-blue-950/50 dark:to-indigo-850 dark:border dark:border-gray-200">Register</CustomButton>
       </form>
-      <div className="flex justify-center mt-2 text-blue-500 text-sm w-full">
+      <div className="flex justify-center mt-2 text-blue-500 text-sm w-full dark:text-gray-200">
         <p>Already have an account?</p>
         <Link href="/auth/login" className="mx-1 hover:underline">Login!</Link>
       </div>
       <div className="flex justify-center mt-1 text-blue-500 text-sm w-full">
-        <Link href="/" className="mx-1 hover:underline">Go Back To Home</Link>
+        <Link href="/" className="mx-1 hover:underline dark:text-gray-200">Go Back To Home</Link>
       </div>
     </div>
   );
-};
+};      
 
 export default RegisterPage;

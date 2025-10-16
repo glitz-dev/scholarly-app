@@ -132,8 +132,8 @@ const CreateGroup = ({ setIsMounting, listOfGroups, setListOfGroups }) => {
 
   return (
     <Card className="w-full max-w-lg mx-auto shadow-xl border-0 bg-gradient-to-br from-white to-gray-50/50 dark:from-gray-900 dark:to-gray-800/50 overflow-hidden">
-      <CardHeader className="p-3 sm:p-6 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/50 dark:to-indigo-950/50 border-b border-blue-100 dark:border-blue-800/50">
-        <CardTitle className="flex items-center gap-2 sm:gap-3 text-lg sm:text-xl font-semibold text-gray-800 dark:text-gray-100">
+      <CardHeader className="p-3 sm:p-6 bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-500 dark:from-blue-950/50 dark:to-indigo-950/50 dark:border-blue-800/50">
+        <CardTitle className="flex items-center gap-2 sm:gap-3 text-lg sm:text-xl font-semibold text-white dark:text-gray-100">
           <div className="p-1.5 sm:p-2 bg-blue-100 dark:bg-blue-900/50 rounded-lg">
             <Users className="h-4 w-4 sm:h-5 sm:w-5 text-blue-600 dark:text-blue-400" />
           </div>

@@ -13,7 +13,7 @@ const AuthLayout = ({ children }) => {
           }}
         />
         
-        <div className="absolute inset-0 bg-gradient-to-r from-indigo-500/80 to-purple-600/80 z-10" />
+        <div className="absolute inset-0 bg-gradient-to-r from-indigo-500/80 to-purple-600/80 dark:from-gray-800 dark:via-gray-700 dark:to-gray-600/50 z-10" />
         
         <div className="absolute left-4 text-purple-100/30 z-20">
           <Sparkles className="w-5 h-5" />
@@ -41,7 +41,7 @@ const AuthLayout = ({ children }) => {
             }}
           />
           
-          <div className="absolute inset-0 bg-gradient-to-r from-indigo-500/80 to-purple-600/80 hover:from-indigo-600/80 hover:to-purple-700/80 z-10 transition-all duration-300" />
+          <div className="absolute inset-0 bg-gradient-to-r from-indigo-500/80 to-purple-600/80 hover:from-indigo-600/80 hover:to-purple-700/80 z-10 transition-all duration-300 dark:from-gray-800 dark:via-gray-700 dark:to-gray-600/50" />
           
           <div className="absolute top-20 left-10 text-purple-100/30 z-20">
             <Sparkles className="w-8 h-8" />
@@ -73,7 +73,7 @@ const AuthLayout = ({ children }) => {
         </div>
         
         {/* Right Section - Content Area */}
-        <div className="w-full md:w-2/3 min-h-[calc(100vh-5rem)] md:h-screen bg-white flex items-center justify-center">
+        <div className="w-full md:w-2/3 min-h-[calc(100vh-5rem)] md:h-screen bg-white dark:bg-gray-800 flex items-center justify-center">
           {children}
         </div>
       </div>

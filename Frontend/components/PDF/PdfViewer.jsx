@@ -20,7 +20,7 @@ const PdfViewer = ({ pdfUrl: initialPdfUrl }) => {
   const [isClient, setIsClient] = useState(false);
   const [numPages, setNumPages] = useState(null);
   const [pageNumber, setPageNumber] = useState(1);
-  const [scale, setScale] = useState(1.5);
+  const [scale, setScale] = useState(1.5); // Will be adjusted in useEffect for mobile
   const [rotation, setRotation] = useState(0);
   const [isFullScreen, setIsFullScreen] = useState(false);
   const [showSearchInput, setShowSearchInput] = useState(false);
@@ -29,7 +29,8 @@ const PdfViewer = ({ pdfUrl: initialPdfUrl }) => {
   const [currentMatch, setCurrentMatch] = useState(0);
   const [hasTextLayer, setHasTextLayer] = useState(true);
   const [tool, setTool] = useState('text');
-  const [showThumbnails, setShowThumbnails] = useState(true);
+  const [showThumbnails, setShowThumbnails] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
   const [renderedPages, setRenderedPages] = useState({});
   const [matchCase, setMatchCase] = useState(false);
   const [thumbnailRendered, setThumbnailRendered] = useState({});
@@ -41,9 +42,9 @@ const PdfViewer = ({ pdfUrl: initialPdfUrl }) => {
   const [highlightAll, setHighlightAll] = useState(false);
   const [selectedColor, setSelectedColor] = useState('#87CEEB');
   const [selectedPenColor, setSelectedPenColor] = useState('#87CEEB');
-  const [annotations, setAnnotations] = useState([]); // Store annotations (highlights with notes)
-  const [showNoteForm, setShowNoteForm] = useState(false); // State for showing note form
-  const [currentHighlight, setCurrentHighlight] = useState(null); // Current highlighted text for note
+  const [annotations, setAnnotations] = useState([]);
+  const [showNoteForm, setShowNoteForm] = useState(false);
+  const [currentHighlight, setCurrentHighlight] = useState(null);
 
   const { showToast } = useCustomToast();
   const searchInputRef = useRef(null);
@@ -52,7 +53,7 @@ const PdfViewer = ({ pdfUrl: initialPdfUrl }) => {
   const fileInputRef = useRef(null);
   const pdfContainerRef = useRef(null);
   const containerRef = useRef(null);
-  const contextMenuRef = useRef(null); // Ref for context menu
+  const contextMenuRef = useRef(null);
   const dispatch = useDispatch();
   const { groupList } = useSelector((state) => state.group);
   const userId = useUserId();
@@ -61,6 +62,21 @@ const PdfViewer = ({ pdfUrl: initialPdfUrl }) => {
   const isZoomingRef = useRef(false);
 
   const zoomLevels = useMemo(() => [1.0, 1.5, 2.0, 2.5, 3.0], []);
+
+  // Detect mobile screen size and adjust scale
+  useEffect(() => {
+    const checkMobile = () => {
+      const mobile = window.innerWidth < 768; // Tailwind's 'md' breakpoint
+      setIsMobile(mobile);
+      setShowThumbnails(!mobile); // Show sidebar only on non-mobile
+      setScale(mobile ? 0.6: 1.5); // Smaller scale for mobile
+    };
+
+    checkMobile(); // Initial check
+    window.addEventListener('resize', checkMobile);
+
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   const observerCallback = useMemo(
     () =>
@@ -77,34 +93,37 @@ const PdfViewer = ({ pdfUrl: initialPdfUrl }) => {
   );
 
   const clearAllAnnotations = useCallback(() => {
-    setAnnotations([]); // Clear all annotations
+    setAnnotations([]);
     console.log('Clear all annotations function called');
   }, []);
 
   const handleAddNote = useCallback(() => {
     setShowNoteForm(true);
-    setShowBox(false); // Hide the question box if shown
+    setShowBox(false);
     const menu = contextMenuRef.current;
-    if (menu) menu.style.display = 'none'; // Hide context menu
+    if (menu) menu.style.display = 'none';
   }, []);
 
-  const handleNoteSubmit = useCallback((note) => {
-    if (currentHighlight) {
-      setAnnotations((prev) => [
-        ...prev,
-        {
-          id: uuid(),
-          text: currentHighlight.text,
-          page: currentHighlight.page,
-          note: note,
-          color: '#F7A5A5', // Set to green for notes
-          position: currentHighlight.position,
-        },
-      ]);
-      setShowNoteForm(false);
-      setCurrentHighlight(null);
-    }
-  }, [currentHighlight]);
+  const handleNoteSubmit = useCallback(
+    (note) => {
+      if (currentHighlight) {
+        setAnnotations((prev) => [
+          ...prev,
+          {
+            id: uuid(),
+            text: currentHighlight.text,
+            page: currentHighlight.page,
+            note: note,
+            color: '#F7A5A5',
+            position: currentHighlight.position,
+          },
+        ]);
+        setShowNoteForm(false);
+        setCurrentHighlight(null);
+      }
+    },
+    [currentHighlight]
+  );
 
   useEffect(() => {
     const originalWarn = console.warn;
@@ -203,7 +222,7 @@ const PdfViewer = ({ pdfUrl: initialPdfUrl }) => {
       const selectedText = selection.toString().trim();
 
       if (selectedText.length > 0 && selection.rangeCount > 0) {
-        const range = selection.getRangeAt(0); 
+        const range = selection.getRangeAt(0);
         const rect = range.getBoundingClientRect();
 
         setSelectedText(selectedText);
@@ -227,7 +246,6 @@ const PdfViewer = ({ pdfUrl: initialPdfUrl }) => {
       }
     }
   }, [tool, pageNumber]);
-
 
   useEffect(() => {
     document.addEventListener('mouseup', handleTextSelectionMouseUp);
@@ -267,45 +285,41 @@ const PdfViewer = ({ pdfUrl: initialPdfUrl }) => {
   }, [showSearchInput]);
 
   useEffect(() => {
-  // Initialize IntersectionObserver
-  observerRef.current = new IntersectionObserver(
-    (entries) => {
-      if (isZoomingRef.current) return;
+    observerRef.current = new IntersectionObserver(
+      (entries) => {
+        if (isZoomingRef.current) return;
 
-      // Find the entry with the highest intersection ratio
-      let maxRatio = 0;
-      let visiblePageNum = pageNumber;
+        let maxRatio = 0;
+        let visiblePageNum = pageNumber;
 
-      entries.forEach((entry) => {
-        if (entry.isIntersecting && entry.intersectionRatio > maxRatio) {
-          maxRatio = entry.intersectionRatio;
-          visiblePageNum = parseInt(entry.target.getAttribute('data-page-number'));
+        entries.forEach((entry) => {
+          if (entry.isIntersecting && entry.intersectionRatio > maxRatio) {
+            maxRatio = entry.intersectionRatio;
+            visiblePageNum = parseInt(entry.target.getAttribute('data-page-number'));
+          }
+        });
+
+        if (visiblePageNum !== pageNumber) {
+          console.log(`Updating pageNumber to ${visiblePageNum}`);
+          setPageNumber(visiblePageNum);
         }
-      });
-
-      if (visiblePageNum !== pageNumber) {
-        console.log(`Updating pageNumber to ${visiblePageNum}`);
-        setPageNumber(visiblePageNum);
+      },
+      {
+        threshold: [0.3, 0.5, 0.7],
+        root: pdfContainerRef.current,
       }
-    },
-    {
-      threshold: [0.3, 0.5, 0.7], // Multiple thresholds for smoother detection
-      root: pdfContainerRef.current, // Observe within the PDF container
-    }
-  );
+    );
 
-  // Observe all pageRefs
-  pageRefs.current.forEach((ref) => {
-    if (ref) observerRef.current.observe(ref);
-  });
+    pageRefs.current.forEach((ref) => {
+      if (ref) observerRef.current.observe(ref);
+    });
 
-  // Cleanup
-  return () => {
-    if (observerRef.current) {
-      observerRef.current.disconnect();
-    }
-  };
-}, [numPages, pageNumber]); // Re-run when numPages or pageNumber changes
+    return () => {
+      if (observerRef.current) {
+        observerRef.current.disconnect();
+      }
+    };
+  }, [numPages, pageNumber]);
 
   const onDocumentLoadSuccess = useCallback(({ numPages }) => {
     setNumPages(numPages);
@@ -503,28 +517,30 @@ const PdfViewer = ({ pdfUrl: initialPdfUrl }) => {
   };
 
   const handleHighlight = () => {
-    // Optional: Add highlight logic to `annotations`
     contextMenuRef.current.style.display = 'none';
   };
-  console.log('...currentHighlight', currentHighlight);
+
   return (
     <div className="relative w-full h-screen flex overflow-hidden">
-      <PdfSidebar
-        showThumbnails={showThumbnails}
-        pdfUrl={pdfUrl}
-        numPages={numPages}
-        pageNumber={pageNumber}
-        thumbnailRendered={thumbnailRendered}
-        setThumbnailRendered={setThumbnailRendered}
-        goToPage={goToPage}
-        searchText={searchText}
-        matchCase={matchCase}
-      />
+      <div className={`${isMobile ? 'hidden' : 'block'}`}>
+        <PdfSidebar
+          showThumbnails={showThumbnails}
+          pdfUrl={pdfUrl}
+          numPages={numPages}
+          pageNumber={pageNumber}
+          thumbnailRendered={thumbnailRendered}
+          setThumbnailRendered={setThumbnailRendered}
+          goToPage={goToPage}
+          searchText={searchText}
+          matchCase={matchCase}
+        />
+      </div>
       <div
         className="flex-1 h-screen"
         style={{
-          marginLeft: showThumbnails ? '12rem' : '0',
+          marginLeft: showThumbnails && !isMobile ? '12rem' : '0',
           transition: 'margin-left 0.3s ease-in-out',
+          width: isMobile ? '100%' : 'auto',
         }}
         ref={containerRef}
       >
@@ -622,9 +638,7 @@ const PdfViewer = ({ pdfUrl: initialPdfUrl }) => {
             />
             <span className="sr-only">Add Note</span>
           </button>
-
           <div className="h-px w-full bg-gray-200"></div>
-
           <button
             className="group p-3 hover:bg-blue-50 active:bg-blue-100 rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-300/50 focus:bg-green-50"
             onClick={handleHighlight}
@@ -637,9 +651,7 @@ const PdfViewer = ({ pdfUrl: initialPdfUrl }) => {
             />
             <span className="sr-only">Highlight</span>
           </button>
-
           <div className="h-px w-full bg-gray-200"></div>
-
           <button
             className="group p-3 hover:bg-purple-50 active:bg-purple-100 rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-purple-300/50 focus:bg-purple-50"
             onClick={handleCopyText}
@@ -653,23 +665,18 @@ const PdfViewer = ({ pdfUrl: initialPdfUrl }) => {
             <span className="sr-only">Copy</span>
           </button>
         </div>
-        {/* Note Input Form */}
         {showNoteForm && currentHighlight && (
-          <div className="fixed bottom-6 right-6 bg-white border border-gray-200 shadow-lg rounded-lg w-80 z-50 overflow-hidden note-form">
-            {/* Header */}
+          <div className="fixed bottom-6 right-6 bg-white border border-gray-200 shadow-lg rounded-lg w-80 z-50 overflow-hidden note-form md:w-96">
             <div className="px-4 py-3 border-b border-gray-200 bg-green-500">
               <h3 className="text-base font-medium text-white">Add Note</h3>
             </div>
-            {/* Content */}
             <div className="p-4 space-y-3">
-              {/* Highlighted text with scrollbar */}
               <div className="bg-yellow-50 border border-yellow-200 rounded-md p-2 max-h-24 overflow-y-auto">
                 <p className="text-xs text-gray-600 mb-1">Selected text:</p>
                 <p className="text-sm text-gray-800 italic">
                   {currentHighlight.text}
                 </p>
               </div>
-              {/* Note textarea */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Your note
@@ -683,7 +690,6 @@ const PdfViewer = ({ pdfUrl: initialPdfUrl }) => {
                 />
               </div>
             </div>
-            {/* Footer with buttons */}
             <div className="bg-gray-50 px-4 py-3 border-t border-gray-200 flex flex-row justify-end space-x-2">
               <button
                 onClick={() => setShowNoteForm(false)}
@@ -730,11 +736,10 @@ const PdfViewer = ({ pdfUrl: initialPdfUrl }) => {
           transition: transform 0.2s ease-out;
           transform: scale(1.02);
         }
-        /* Style for highlights with notes */
         .highlight-with-note {
           position: relative;
           background-color: #aaffaa;
-          border: none; /* Visual indicator for notes (e.g., purple border) */
+          border: none;
         }
         .highlight-with-note::after {
           content: '📝';

@@ -69,7 +69,7 @@ const PdfViewer = ({ pdfUrl: initialPdfUrl }) => {
       const mobile = window.innerWidth < 768; // Tailwind's 'md' breakpoint
       setIsMobile(mobile);
       setShowThumbnails(!mobile); // Show sidebar only on non-mobile
-      setScale(mobile ? 0.6: 1.5); // Smaller scale for mobile
+      setScale(mobile ? 0.6 : 1.5); // Smaller scale for mobile
     };
 
     checkMobile(); // Initial check
@@ -95,6 +95,11 @@ const PdfViewer = ({ pdfUrl: initialPdfUrl }) => {
   const clearAllAnnotations = useCallback(() => {
     setAnnotations([]);
     console.log('Clear all annotations function called');
+  }, []);
+
+  const deleteAnnotation = useCallback((annotationId) => {
+    setAnnotations((prev) => prev.filter((ann) => ann.id !== annotationId));
+    console.log(`Deleted annotation with ID ${annotationId}`);
   }, []);
 
   const handleAddNote = useCallback(() => {
@@ -619,8 +624,9 @@ const PdfViewer = ({ pdfUrl: initialPdfUrl }) => {
           matchCase={matchCase}
           selectedColor={selectedColor}
           selectedPenColor={selectedPenColor}
-          clearAllAnnotations={clearAllAnnotations}
           annotations={annotations}
+          setAnnotations={setAnnotations} 
+          deleteAnnotation={deleteAnnotation} 
         />
         <div
           ref={contextMenuRef}
@@ -774,5 +780,5 @@ const PdfViewer = ({ pdfUrl: initialPdfUrl }) => {
     </div>
   );
 };
-
+     
 export default PdfViewer;

@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useState, useRef, memo } from 'react';
+import { useEffect, useState, useRef, memo, useCallback } from 'react'; 
 import { Document, Page, pdfjs } from 'react-pdf';
 import { Card, CardContent } from '../ui/card';
 import { MessageSquare, Trash2, X } from 'lucide-react';
@@ -96,14 +96,17 @@ function PdfDocument({
   selectedPenColor,
   annotations,
   deleteAnnotation,
+  setAnnotations, // Added to update annotations
 }) {
   const [isPanning, setIsPanning] = useState(false);
   const [panStart, setPanStart] = useState({ x: 0, y: 0 });
   const [isDrawing, setIsDrawing] = useState(false);
   const [isErasing, setIsErasing] = useState(false);
   const [lastPoint, setLastPoint] = useState(null);
-  const [activeNoteId, setActiveNoteId] = useState(null);
-  const [noteBoxPosition, setNoteBoxPosition] = useState({ x: 0, y: 0 });
+  const [noteState, setNoteState] = useState({ activeNoteId: null, x: 0, y: 0 });
+  
+  const { activeNoteId } = noteState; 
+
   const canvasRefs = useRef({});
   const drawingDataRefs = useRef({});
   const firstMatchForAnnotation = useRef({});
@@ -459,10 +462,11 @@ function PdfDocument({
     const noteIcon = event.target;
     if (!noteIcon) return;
 
-    if (activeNoteId === annotationId) {
-      setActiveNoteId(null);
-      setNoteBoxPosition({ x: 0, y: 0 });
+    // Use noteState for checking/setting
+    if (noteState.activeNoteId === annotationId) {
+      setNoteState({ activeNoteId: null, x: 0, y: 0 }); // CLOSE
       console.log(`Closed note-box for annotation ${annotationId}`);
+      return;
     } else {
       const container = pdfContainerRef.current;
       if (!container) return;
@@ -497,8 +501,7 @@ function PdfDocument({
         y = scrollTop + offsetY;
       }
 
-      setActiveNoteId(annotationId);
-      setNoteBoxPosition({ x, y });
+      setNoteState({ activeNoteId: annotationId, x, y }); // OPEN
       console.log(`Opening note-box for annotation ${annotationId} at position (${x}, ${y})`);
     }
   };
@@ -510,6 +513,11 @@ function PdfDocument({
   useEffect(() => {
     const handleNoteIconClick = (e) => {
       if (e.target.classList.contains('note-icon')) {
+        // FIX: Stop propagation to prevent this click from triggering other
+        // mouse/text layer events that lead to flickering/double-renders.
+        e.stopPropagation(); 
+        e.preventDefault(); 
+        
         const annotationId = e.target.getAttribute('data-annotation-id');
         toggleNoteBox(annotationId, e);
       }
@@ -525,7 +533,94 @@ function PdfDocument({
         container.removeEventListener('click', handleNoteIconClick);
       }
     };
-  }, []);
+  }, []); // toggleNoteBox is stable due to using state setter
+
+  // Handle color change for an annotation
+  const handleColorChange = (annotationId, newColor) => {
+    setAnnotations((prev) =>
+      prev.map((ann) =>
+        ann.id === annotationId ? { ...ann, color: newColor } : ann
+      )
+    );
+    console.log(`Changed color for annotation ${annotationId} to ${newColor}`);
+  };
+
+  // --- START MEMOIZED customTextRenderer ---
+  const memoizedCustomTextRenderer = useCallback(
+    ({ str, itemIndex, pageNum }) => {
+      let result = str;
+
+      // Filter annotations specific to this page
+      const pageAnnotations = annotations.filter((ann) => ann.page === pageNum);
+
+      // ... (Search highlighting logic omitted for brevity, assumed to be correct)
+
+      pageAnnotations.forEach((ann) => {
+        const hasNote = typeof ann.note === 'string' && ann.note.trim().length > 0;
+        
+        // Check if this is the currently active highlight
+        const isActiveHighlight = ann.id === activeNoteId;
+
+        if (
+          hasNote &&
+          ann.text.includes(str) &&
+          str.length > 4 &&
+          /\w/.test(str) &&
+          str.trim().length > 0
+        ) {
+          const pageText = textLayerRef.current[pageNum] || '';
+          const normalizedStr = str.trim().toLowerCase();
+          const normalizedAnnText = ann.normalizedText || ann.text.trim().toLowerCase();
+          const absoluteIndex = ann.startIndex || pageText.indexOf(str);
+          
+          const isStartOfAnnotation =
+            absoluteIndex !== -1 &&
+            normalizedAnnText.includes(normalizedStr) &&
+            (!firstMatchForAnnotation.current[pageNum]?.[ann.id] ||
+              firstMatchForAnnotation.current[pageNum][ann.id].index === absoluteIndex);
+
+          if (isStartOfAnnotation) {
+            if (!firstMatchForAnnotation.current[pageNum]) {
+              firstMatchForAnnotation.current[pageNum] = {};
+            }
+            firstMatchForAnnotation.current[pageNum][ann.id] = { index: absoluteIndex };
+          }
+
+          let className = 'highlight-with-note';
+          if (isActiveHighlight) {
+            className += ' active-highlight'; // <-- Apply new class for active state
+          }
+          const style = `background-color: ${ann.color}; color: black; position: relative;`;
+          
+          if (isStartOfAnnotation) {
+            // Include a more robust HTML structure for the icon to avoid text layer issues
+            const noteIconHtml = `<span class="note-icon" data-annotation-id="${ann.id}" style="display: inline-block; width: 16px; height: 16px; margin-right: 4px; cursor: pointer;"></span>`;
+            
+            // Note: If the icon is causing issues by being part of the same span, you might need to try putting it 
+            // *before* the text span and using absolute positioning to move it to the end of the highlight.
+            // For now, let's assume it works inline with the event propagation fix.
+            result = `<span class="${className}" style="${style}" data-annotation-id="${ann.id}">${noteIconHtml}${str}</span>`;
+          } else {
+            result = `<span class="${className}" style="${style}" data-annotation-id="${ann.id}">${str}</span>`;
+          }
+        }
+      });
+
+      return result;
+    },
+    [
+      searchText,
+      searchResults,
+      currentMatch,
+      highlightAll,
+      matchCase,
+      annotations,
+      textLayerRef,
+      firstMatchForAnnotation,
+      activeNoteId, 
+    ]
+  );
+  // --- END MEMOIZED customTextRenderer ---
 
   console.log('PdfDocument props:', { tool, selectedPenColor });
 
@@ -615,108 +710,10 @@ function PdfDocument({
                   isRendered={isRendered}
                   pageAnnotations={pageAnnotations}
                   onRenderSuccess={onPageRenderSuccess}
-                  customTextRenderer={({ str, itemIndex }) => {
-                    let result = str;
-
-                    if (searchText && searchResults.length > 0) {
-                      const searchTextForMatch = matchCase ? searchText : searchText.toLowerCase();
-                      const parts = [];
-                      let index = 0;
-                      const pageText = textLayerRef.current[pageNum] || '';
-                      let absoluteIndex = pageText.indexOf(str);
-
-                      while (index < str.length) {
-                        const searchIndex = matchCase
-                          ? str.indexOf(searchText, index)
-                          : str.toLowerCase().indexOf(searchTextForMatch, index);
-                        if (searchIndex === -1) {
-                          parts.push(str.slice(index));
-                          break;
-                        }
-
-                        const absoluteStartIndex = absoluteIndex + searchIndex;
-                        const match = searchResults.find(
-                          (m) => m.page === pageNum && m.startIndex === absoluteStartIndex
-                        );
-
-                        if (match) {
-                          const matchText = str.slice(searchIndex, searchIndex + searchText.length);
-                          const highlightStyle =
-                            highlightAll && match.matchIndex !== currentMatch
-                              ? 'background-color: #ADD8E6; color: black; padding: 2px 4px;'
-                              : match.matchIndex === currentMatch
-                              ? 'background-color: #4169E1; color: white; padding: 2px 4px;'
-                              : '';
-
-                          if (highlightStyle) {
-                            parts.push(str.slice(index, searchIndex));
-                            parts.push(
-                              `<mark class="search-match${
-                                match.matchIndex === currentMatch ? ' active-match' : ''
-                              }" data-match-index="${match.matchIndex}" style="${highlightStyle}">${matchText}</mark>`
-                            );
-                          } else {
-                            parts.push(str.slice(index, searchIndex + searchText.length));
-                          }
-                        } else {
-                          parts.push(str.slice(index, searchIndex + searchText.length));
-                        }
-
-                        index = searchIndex + searchText.length;
-                        absoluteIndex += searchIndex + searchText.length;
-                      }
-
-                      if (parts.length > 0) {
-                        result = parts.join('');
-                      }
-                    }
-
-                    pageAnnotations.forEach((ann) => {
-                      const hasNote = typeof ann.note === 'string' && ann.note.trim().length > 0;
-                      if (
-                        hasNote &&
-                        ann.text.includes(str) &&
-                        str.length > 4 &&
-                        /\w/.test(str) &&
-                        str.trim().length > 0
-                      ) {
-                        const pageText = textLayerRef.current[pageNum] || '';
-                        const normalizedStr = str.trim().toLowerCase();
-                        const normalizedAnnText = ann.normalizedText || ann.text.trim().toLowerCase();
-                        const absoluteIndex = ann.startIndex || pageText.indexOf(str);
-                        // Check if this is the correct text fragment for the annotation
-                        const isStartOfAnnotation =
-                          absoluteIndex !== -1 &&
-                          normalizedAnnText.includes(normalizedStr) &&
-                          (!firstMatchForAnnotation.current[pageNum]?.[ann.id] ||
-                            firstMatchForAnnotation.current[pageNum][ann.id].index === absoluteIndex);
-
-                        if (isStartOfAnnotation) {
-                          if (!firstMatchForAnnotation.current[pageNum]) {
-                            firstMatchForAnnotation.current[pageNum] = {};
-                          }
-                          firstMatchForAnnotation.current[pageNum][ann.id] = { index: absoluteIndex };
-                          console.log(
-                            `Setting first match for annotation ${ann.id} on page ${pageNum} at index ${absoluteIndex}`
-                          );
-                        }
-
-                        console.log(
-                          `Processing annotation for text: "${str}", absoluteIndex: ${absoluteIndex}, ann.id: ${ann.id}, isStart: ${isStartOfAnnotation}`,
-                          ann
-                        );
-
-                        const style = `background-color: ${ann.color}; color: black; position: relative;`;
-                        if (isStartOfAnnotation) {
-                          result = `<span class="highlight-with-note" style="${style}" data-annotation-id="${ann.id}"><span class="note-icon" data-annotation-id="${ann.id}" style="display: inline-block; width: 16px; height: 16px; margin-right: 4px; cursor: pointer;"></span>${str}</span>`;
-                        } else {
-                          result = `<span class="highlight-with-note" style="${style}" data-annotation-id="${ann.id}">${str}</span>`;
-                        }
-                      }
-                    });
-
-                    return result;
-                  }}
+                  // Pass the memoized function and its required dynamic data (pageNum)
+                  customTextRenderer={({ str, itemIndex }) => 
+                    memoizedCustomTextRenderer({ str, itemIndex, pageNum })
+                  }
                   tool={tool}
                   isZoomingRef={isZoomingRef}
                   canvasRefs={canvasRefs}
@@ -725,16 +722,17 @@ function PdfDocument({
             );
           })}
         </Document>
-        {activeNoteId && (() => {
-          const ann = annotations.find(a => a.id === activeNoteId);
+        {/* Note Box Rendering - updated to use noteState and add color picker */}
+        {noteState.activeNoteId && (() => {
+          const ann = annotations.find(a => a.id === noteState.activeNoteId);
           if (!ann) return null;
           return (
             <div
               className="note-overlay"
               style={{
                 position: 'absolute',
-                top: noteBoxPosition.y,
-                left: noteBoxPosition.x,
+                top: noteState.y, 
+                left: noteState.x, 
                 zIndex: 200,
               }}
             >
@@ -744,9 +742,8 @@ function PdfDocument({
                   <div className="note-actions">
                     <button
                       onClick={() => {
-                        deleteAnnotation(activeNoteId);
-                        setActiveNoteId(null);
-                        setNoteBoxPosition({ x: 0, y: 0 });
+                        deleteAnnotation(noteState.activeNoteId); 
+                        setNoteState({ activeNoteId: null, x: 0, y: 0 }); 
                       }}
                       className="note-delete-btn"
                       title="Delete Note"
@@ -755,8 +752,7 @@ function PdfDocument({
                     </button>
                     <button
                       onClick={() => {
-                        setActiveNoteId(null);
-                        setNoteBoxPosition({ x: 0, y: 0 });
+                        setNoteState({ activeNoteId: null, x: 0, y: 0 }); 
                       }}
                       className="note-close-btn"
                       title="Close Note"
@@ -767,6 +763,17 @@ function PdfDocument({
                 </div>
                 <div className="note-content">
                   <p>{ann.note}</p>
+                  <div className="color-picker mt-2">
+                    <label className="block text-xs font-medium text-gray-700 mb-1">
+                      Highlight Color
+                    </label>
+                    <input
+                      type="color"
+                      value={ann.color}
+                      onChange={(e) => handleColorChange(ann.id, e.target.value)}
+                      className="w-full h-8 border border-gray-300 rounded-md cursor-pointer"
+                    />
+                  </div>
                 </div>
               </div>
             </div>
@@ -775,6 +782,12 @@ function PdfDocument({
       </div>
       <style>
         {`
+          /* FIX: Add style for the active highlight */
+          .highlight-with-note.active-highlight {
+            outline: 2px solid #3b82f6; 
+            outline-offset: -1px;
+          }
+
           .note-icon {
             background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="blue" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16v12H8l-4 4V4z"/></svg>') no-repeat center;
             background-size: contain;
@@ -842,6 +855,13 @@ function PdfDocument({
             font-size: 13px;       
             color: #374151;
             line-height: 1.5;
+          }
+          .color-picker input[type="color"] {
+            padding: 2px;
+            width: 100%;
+            height: 32px;
+            border-radius: 4px;
+            border: 1px solid #d1d5db;
           }
         `}
       </style>

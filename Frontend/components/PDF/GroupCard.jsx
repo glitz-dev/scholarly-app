@@ -154,15 +154,15 @@ const GroupCard = React.memo(({ groupName, emails, count, groupId, setIsMounting
 
     return (
         <div className="group">
-            <Accordion type="single" collapsible className="w-full">
+            <Accordion type="single" collapsible className="w-full mb-0.5 px-3 md:px-0">
                 <AccordionItem value="card-1" className="border-none">
-                    <Card className="shadow-lg border-0 bg-gradient-to-br from-white to-gray-50/50 dark:from-gray-900 dark:to-gray-800/50 transition-all duration-300 transform hover:-translate-y-1 overflow-hidden">
-                        <CardHeader className="p-3 sm:p-6 bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/50 dark:to-indigo-950/50 border-b border-blue-100 dark:border-blue-800/50">
+                    <Card className="shadow-lg border-0 bg-gradient-to-br from-white to-gray-50/50 dark:from-gray-900 dark:to-gray-800/50  overflow-hidden">
+                        <CardHeader className="py-0 px-3 md:px-3 bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-500 dark:from-blue-950/50 dark:to-indigo-950/50 border-b border-blue-100 dark:border-blue-800/50">
                             <AccordionTrigger className="w-full text-left hover:no-underline group/trigger">
                                 <CardTitle className="w-full flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 sm:gap-0">
                                     <div className="flex items-center gap-2 sm:gap-3 w-full sm:w-auto">
-                                        <div className="relative p-1.5 sm:p-2 bg-blue-100 dark:bg-blue-900/50 rounded-lg group-hover/trigger:bg-blue-200 dark:group-hover/trigger:bg-blue-800/70 transition-colors duration-200">
-                                            <Users className="h-4 w-4 sm:h-5 sm:w-5 text-blue-600 dark:text-blue-400" />
+                                        <div className="relative p-1.5 sm:p-1.5 bg-blue-100 dark:bg-blue-900/50 rounded-full group-hover/trigger:bg-blue-200 dark:group-hover/trigger:bg-blue-800/70 transition-colors duration-200">
+                                            <Users className="h-4 w-4 sm:h-4 sm:w-4 text-blue-600 dark:text-blue-400" />
                                             {/* Mobile badge - positioned on top-left of icon */}
                                             <Badge
                                                 variant="secondary"
@@ -171,7 +171,7 @@ const GroupCard = React.memo(({ groupName, emails, count, groupId, setIsMounting
                                                 {count}
                                             </Badge>
                                         </div>
-                                        <span className="text-sm sm:text-base font-semibold text-gray-800 dark:text-gray-100 group-hover/trigger:text-blue-700 dark:group-hover/trigger:text-blue-300 transition-colors duration-200 truncate">
+                                        <span className="text-sm sm:text-base font-semibold text-white dark:text-gray-100">
                                             {groupName}
                                         </span>
                                     </div>
@@ -179,7 +179,7 @@ const GroupCard = React.memo(({ groupName, emails, count, groupId, setIsMounting
                                     <div className="hidden sm:flex items-center gap-2 w-full sm:w-auto justify-end sm:justify-start">
                                         <Badge
                                             variant="secondary"
-                                            className="bg-gradient-to-r from-blue-500 to-indigo-500 text-white border-0 px-3 py-1 rounded-full font-medium shadow-sm text-sm"
+                                            className="bg-blue-100 text-blue-600 border-0 px-3 py-1 rounded-full font-medium shadow-sm text-sm"
                                         >
                                             {count} {count === 1 ? 'member' : 'members'}
                                         </Badge>

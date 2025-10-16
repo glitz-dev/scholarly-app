@@ -108,16 +108,16 @@ const LoginPage = () => {
   }, [])
   return (
     <>
-      <div className='w-full md:w-1/2 p-4 '>
-        <h1 className='text-black text-3xl font-semibold text-center mb-2 font-geist tracking-tight'>login</h1>
+      <div className='w-full md:w-1/2 p-4 dark:bg-gradient-to-r from-gray-700 via-gray-700 to-gray-800 dark:md:rounded-xl'>
+        <h1 className='text-black text-3xl font-semibold text-center mb-2 font-geist tracking-tight dark:text-gray-200'>login</h1>
         <p className='text-center font-thin text-sm mb-7 tracking-tight'>we'll get you back to the app in just a minute</p>
         <form className='flex flex-col space-y-4 text-black' onSubmit={handleLogin}>
           <div>
-            <label htmlFor='email' className='block text-sm font-medium text-gray-700'>Email</label>
+            <label htmlFor='email' className='block text-sm font-medium text-gray-700 dark:text-gray-200'>Email</label>
             <input type='email' id='EmailID' placeholder='Enter Email Address...' name='EmailID' value={formData?.EmailID} className='mt-1 block w-full border border-gray-300 rounded-md shadow-sm focus:outline-none sm:text-sm p-2 bg-white' onChange={handleChange} required />
           </div>
           <div>
-            <label htmlFor='password' className='block text-sm font-medium text-gray-700'>Password</label>
+            <label htmlFor='password' className='block text-sm font-medium text-gray-700 dark:text-gray-200'>Password</label>
             <div className="relative w-full">
               <input
                 type={showPassword ? "text" : "password"}
@@ -140,19 +140,19 @@ const LoginPage = () => {
           </div>
           <div className='flex flex-row gap-3 px-1  py-5'>
             <input type="checkbox" className='cursor-pointer bg-white' checked={rememberMe} onChange={handleRememberMe} />
-            <span className='text-gray-500 text-sm font-geist tracking-tight'>stay logged in</span>
+            <span className='text-gray-500 text-sm font-geist tracking-tight dark:text-gray-200'>stay logged in</span>
           </div>
-          <CustomButton variant='purpleGradient' loading={submitting}>Login</CustomButton>
+          <CustomButton variant='purpleGradient' loading={submitting} className="dark:from-blue-950/50 dark:to-indigo-850 dark:border dark:border-gray-200">Login</CustomButton>
         </form>
-        <div className='flex flex-col md:flex-row lg:flex-row justify-center items-center gap-3 md:gap-0 lg:gap-0 mt-4 text-blue-500 text-sm w-full'>
+        <div className='flex flex-col md:flex-row lg:flex-row justify-center items-center gap-3 md:gap-0 lg:gap-0 mt-4 text-blue-500 text-sm w-full dark:text-gray-200'>
           <p>you don't have an account?</p>
-          <Link href='/auth/register' className='mx-2 hover:underline'>Create an Account</Link>
+          <Link href='/auth/register' className='mx-2 hover:underline dark:text-gray-200'>Create an Account</Link>
         </div>
         <div className='flex justify-center mt-1 text-blue-500 text-sm w-full'>
-          <Link href='/auth/forgot-password' className='mx-2 hover:underline mb-2'>Forgot Password?</Link>
+          <Link href='/auth/forgot-password' className='mx-2 hover:underline mb-2 dark:text-gray-200'>Forgot Password?</Link>
         </div>
         <div className='flex justify-center mt-1 text-blue-500 text-sm w-full'>
-          <Link href='/' className='mx-2 hover:underline'>Go Back To Home</Link>
+          <Link href='/' className='mx-2 hover:underline dark:text-gray-200'>Go Back To Home</Link>
         </div>
       </div>
     </>

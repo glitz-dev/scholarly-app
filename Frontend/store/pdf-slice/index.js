@@ -5,10 +5,11 @@ const initialState = {
     isLoading: false,
     collectionList: [],
     error: null,
-    selectedPdf: null // Add selectedPdf to store the fetched PDF data
+    selectedPdf: null,
+    projectData: null
 }
 
-export const saveFile = createAsyncThunk('/pdf/savefile', async ({ formData, authToken }, { rejectWithValue }) => {
+export const saveFile = createAsyncThunk('/pdf/savefile', async ({ formData, authToken }, { rejectWithValue, getState }) => {
     try {
         const response = await axios.post(
             `/api/PDF/savefile`,
@@ -26,7 +27,20 @@ export const saveFile = createAsyncThunk('/pdf/savefile', async ({ formData, aut
     }
 });
 
-export const getCollections = createAsyncThunk('/pdf/getcollections', async ({ authToken }, { rejectWithValue }) => {
+export const getCollections = createAsyncThunk('/pdf/getcollections', async ({ authToken, projectId }, { rejectWithValue }) => {
+    try {
+        const response = await axios.get(`/api/PDF/uploadedpdfslist?ProjectId=${projectId}`, {
+            headers: {
+                Authorization: `Bearer ${authToken}`
+            }
+        })
+        return response?.data;
+    } catch (error) {
+        return rejectWithValue(error.response?.data?.message || 'Can not fetch files');
+    }
+})
+
+export const getAllCollections = createAsyncThunk('/pdf/getallcollections', async ({ authToken }, { rejectWithValue }) => {
     try {
         const response = await axios.get(`/api/PDF/uploadedpdfslist`, {
             headers: {
@@ -53,9 +67,9 @@ export const editPdf = createAsyncThunk('/pdf/editpdf', async ({ id, article, pu
     }
 })
 
-export const deletePdf = createAsyncThunk('/pdf/deletepdf', async ({ userId, id, authToken }, { rejectWithValue }) => {
+export const deletePdf = createAsyncThunk('/pdf/deletepdf', async ({ id, authToken }, { rejectWithValue }) => {
     try {
-        const response = await axios.delete(`/api/mock/PDF/deleteCollection?userId=${userId}&id=${id}`, {
+        const response = await axios.post(`/api/PDF/deletepdf?UId=${id}`, {}, {
             headers: {
                 Authorization: `Bearer ${authToken}`
             }
@@ -93,7 +107,78 @@ export const getUploadedPdf = createAsyncThunk('/pdf/getUploadedPdf', async ({ u
     }
 })
 
+export const addProject = createAsyncThunk('/pdf/addproject', async ({ userId, formData, authToken }, { rejectWithValue }) => {
+    try {
+        const response = await axios.post(`/api/PDF/addproject?UserId=${userId}&Title=${formData?.title}&Description=${formData?.description}`, {}, {
+            headers: {
+                Authorization: `Bearer ${authToken}`
+            }
+        })
+        return response?.data;
+    } catch (error) {
+        return rejectWithValue(error.response?.data?.message || 'Can not add project');
+    }
+})
 
+export const getProjects = createAsyncThunk('/pdf/getprojects', async ({ userId, authToken }, { rejectWithValue }) => {
+    try {
+        const response = await axios.get(`/api/PDF/allprojects?UserId=${userId}`, {
+            headers: {
+                Authorization: `Bearer ${authToken}`
+            }
+        })
+        return response?.data;
+    } catch (error) {
+        return rejectWithValue(error.response?.data?.message || 'Can not get projects');
+    }
+})
+
+export const deleteProject = createAsyncThunk('/pdf/deleteproject', async ({ projectId, authToken }, { rejectWithValue }) => {
+    try {
+        const response = await axios.post(`/api/PDF/deleteproject?ProjectId=${projectId}`, {}, {
+            headers: {
+                Authorization: `Bearer ${authToken}`
+            }
+        })
+        return response?.data
+    } catch (error) {
+        return rejectWithValue(error.response?.data?.message || `Can not delete project`)
+    }
+})
+
+export const updateProject = createAsyncThunk('/pdf/updateproject', async ({ rejectWithValue }) => {
+    try {
+        const response = await axios.post('/api/PDF/updateproject', formData, {}, {
+            headers: {
+                Authorization: `Bearer ${authToken}`
+            }
+        })
+        return response?.data
+    } catch (error) {
+        return rejectWithValue(error.response?.data?.message || `Can not delete project`)
+    }
+})
+
+export const editProject = createAsyncThunk(
+    '/pdf/editproject',
+    async ({ projectId, title, description, authToken }, { rejectWithValue }) => {
+        try {
+            const response = await axios.post(
+                `/api/PDF/updateproject`,
+                { ProjectId: projectId, Title: title, Description: description },
+                {
+                    headers: {
+                        Authorization: `Bearer ${authToken}`,
+                        'Content-Type': 'application/json',
+                    },
+                }
+            );
+            return response?.data;
+        } catch (error) {
+            return rejectWithValue(error.response?.data?.message || 'Can not edit project');
+        }
+    }
+);
 
 const collectionSlice = createSlice({
     name: 'collection',
@@ -105,6 +190,10 @@ const collectionSlice = createSlice({
         }).addCase(saveFile.fulfilled, (state, action) => {
             state.isLoading = false;
             state.error = null;
+            const newCollection = action.payload;
+            if (newCollection && newCollection.ProjectId) {
+                state.collectionList = [...state.collectionList, newCollection];
+            }
         }).addCase(saveFile.rejected, (state, action) => {
             state.isLoading = false;
             state.error = action.payload;
@@ -151,6 +240,40 @@ const collectionSlice = createSlice({
         }).addCase(getUploadedPdf.rejected, (state, action) => {
             state.isLoading = false;
             state.error = action.payload;
+        }).addCase(addProject.pending, (state) => {
+            state.isLoading = true;
+        }).addCase(addProject.fulfilled, (state) => {
+            state.isLoading = false;
+            state.error = null
+        }).addCase(addProject.rejected, (state, action) => {
+            state.isLoading = false;
+            state.error = action.payload;
+        }).addCase(getProjects.pending, (state) => {
+            state.isLoading = true
+        }).addCase(getProjects.fulfilled, (state, action) => {
+            state.isLoading = false;
+            state.projectData = action.payload;
+            state.error = null
+        }).addCase(getProjects.rejected, (state, action) => {
+            state.isLoading = false;
+            state.error = action.payload;
+        }).addCase(getAllCollections.pending, (state, action) => {
+            state.isLoading = true
+        }).addCase(getAllCollections.fulfilled, (state, action) => {
+            state.isLoading = false;
+            state.collectionList = action.payload;
+            state.error = null
+        }).addCase(getAllCollections.rejected, (state, action) => {
+            state.isLoading = false;
+            state.error = action.payload
+        }).addCase(deleteProject.pending, (state) => {
+            state.isLoading = true
+        }).addCase(deleteProject.fulfilled, (state, action) => {
+            state.isLoading = false;
+            state.error = null
+        }).addCase(deleteProject.rejected, (state, action) => {
+            state.isLoading = false;
+            state.error = action?.payload;
         })
     }
 })

@@ -171,10 +171,8 @@ const Navbar = () => {
     );
   };
 
-
-
   return (
-    <nav className="flex justify-between items-center px-3 md:px-10 lg:px-10 py-3 shadow-md bg-white dark:bg-gray-800 dark:text-white relative">
+    <nav className="flex justify-between items-center px-3 md:px-10 lg:px-10 py-3 bg-white dark:bg-gray-800 dark:text-white relative border border-b dark:border-b-gray-500">  
       <Link href={'/pdf/pdflist'}>
       {/* light mode logo */}
         <Image
@@ -252,7 +250,7 @@ const Navbar = () => {
           {/* User Profile Dropdown */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" className="relative h-8 w-8 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 text-white hover:text-white">
+              <Button variant="ghost" className="relative h-8 w-8 rounded-full bg-gradient-to-br from-purple-500 via-indigo-400 to-blue-400 text-white hover:text-white dark:from-blue-950/50 dark:to-indigo-950/50 dark:border dark:border-gray-200">
                   <User className="h-5 w-5"/>
               </Button>
             </DropdownMenuTrigger>
@@ -323,7 +321,7 @@ const Navbar = () => {
         {/* User Profile Dropdown for Mobile */}
         <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" className="relative h-8 w-8 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 text-white hover:text-white">
+              <Button variant="ghost" className="relative h-8 w-8 rounded-full bg-gradient-to-r from-purple-500 via-indigo-400 to-blue-400 text-white hover:text-white dark:from-blue-950/50 dark:to-indigo-950/50 dark:border dark:border-gray-200">
                   <User className="h-5 w-5"/>
               </Button>
             </DropdownMenuTrigger>

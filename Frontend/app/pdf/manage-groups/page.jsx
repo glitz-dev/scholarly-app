@@ -61,8 +61,8 @@ const GroupList = () => {
               collapsible
               className="w-full">
                 <AccordionItem value="item-1">
-                  <AccordionTrigger className="hover:no-underline" data-create-group>Create Group</AccordionTrigger>
-                  <AccordionContent className="flex flex-col gap-4 text-balance">
+                  <AccordionTrigger className="hover:no-underline px-3" data-create-group>Create Group</AccordionTrigger>
+                  <AccordionContent className="flex flex-col gap-4 text-balance mx-3">
                     <CreateGroup setIsMounting={setIsMounting} listOfGroups={listOfGroups} setListOfGroups={setListOfGroups} />
                   </AccordionContent>
                 </AccordionItem>
@@ -70,8 +70,8 @@ const GroupList = () => {
           </div>
         )}
         <div className='block md:hidden lg:hidden w-full bg-white dark:bg-gray-800 dark:text-white dark:rounded-lg px-0 md:px-3 lg:px-3 py-0'>
-          <h1 className='font-semibold text-gray-500 dark:text-white mt-2'>Groups</h1>
-          <p className='text-sm text-gray-500 dark:text-white mb-3'>Total Groups: <span>{listOfGroups?.length}</span></p>
+          <h1 className='font-semibold text-gray-500 dark:text-white mt-2 mx-3'>Groups</h1>
+          <p className='text-sm text-gray-500 dark:text-white mb-3 mx-3'>Total Groups: <span>{listOfGroups?.length}</span></p>
           {listOfGroups?.length > 0 ? (
             listOfGroups?.map((group) => (
               <GroupCard

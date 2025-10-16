@@ -15,6 +15,7 @@ const CustomButton = ({
   className,
   asChild = false,
   fullWidth = false,
+  ref,
   ...props
 }) => {
   const baseStyles = fullWidth ? 'w-full sm:w-auto' : '';
@@ -47,6 +48,7 @@ const CustomButton = ({
       onClick={onClick}
       className={buttonStyles}
       asChild={asChild}
+      ref={ref}
       {...props}
     >
       {asChild ? (

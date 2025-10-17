@@ -25,7 +25,7 @@
 	21. cd Frontend
 	22. npm install
 	23. npm audit fix --force
-	24. npm run build
+	24. npm run build  OR NODE_OPTIONS="--max-old-space-size=1048" npm run build
 	25. pm2 start scholarly
  
 

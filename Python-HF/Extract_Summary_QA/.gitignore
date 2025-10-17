@@ -48,4 +48,5 @@ Thumbs.db
 
 # Uvicorn / FastAPI specific
 *.sqlite3
-```
+# Files
+/thesis_1.pdf

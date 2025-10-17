@@ -782,89 +782,221 @@ function PdfDocument({
       </div>
       <style>
         {`
-          /* FIX: Add style for the active highlight */
+          /* Enhanced active highlight with glow effect */
           .highlight-with-note.active-highlight {
             outline: 2px solid #3b82f6; 
-            outline-offset: -1px;
+            outline-offset: 2px;
+            box-shadow: 0 0 12px rgba(59, 130, 246, 0.4);
+            animation: pulseGlow 2s ease-in-out infinite;
           }
 
-          .note-icon {
-            background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="blue" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16v12H8l-4 4V4z"/></svg>') no-repeat center;
-            background-size: contain;
-            vertical-align: middle;
+          @keyframes pulseGlow {
+            0%, 100% {
+              box-shadow: 0 0 12px rgba(59, 130, 246, 0.4);
+            }
+            50% {
+              box-shadow: 0 0 20px rgba(59, 130, 246, 0.6);
+            }
           }
+
+          /* Note icon using MessageSquare lucide icon style */
+          .note-icon {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            margin-right: 4px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+          }
+
+          .note-icon::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="blue" stroke="%23667eea" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>') no-repeat center;
+            background-size: contain;
+            filter: drop-shadow(0 2px 4px rgba(102, 126, 234, 0.3));
+          }
+
+          .note-icon:hover::before {
+            transform: scale(1.15);
+            filter: drop-shadow(0 4px 8px rgba(102, 126, 234, 0.5));
+          }
+
           .note-overlay {
             position: absolute;
             pointer-events: auto;
+            animation: fadeInSlide 0.3s ease-out;
           }
+
+          @keyframes fadeInSlide {
+            from {
+              opacity: 0;
+              transform: translateY(-10px);
+            }
+            to {
+              opacity: 1;
+              transform: translateY(0);
+            }
+          }
+
+          /* Enhanced note box with modern design */
           .note-box {
-            background-color: #ffffff;
+            background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
             border: 1px solid #e2e8f0;
-            border-radius: 8px;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-            width: 200px;
+            border-radius: 12px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15), 0 4px 12px rgba(0, 0, 0, 0.1);
+            width: 280px;
             overflow: hidden;
-            font-family: Arial, sans-serif;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
             pointer-events: auto;
+            backdrop-filter: blur(10px);
           }
+
+          /* Enhanced header with gradient */
           .note-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            background-color: #f1f5f9;
-            padding: 8px 12px;
-            border-bottom: 1px solid #e2e8f0;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 12px 16px;
+            border-bottom: none;
           }
+
           .note-title {
-            font-size: 14px;
-            font-weight: 600;
-            color: #1f2937;
+            font-size: 15px;
+            font-weight: 700;
+            color: #ffffff;
+            letter-spacing: 0.3px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
           }
+
           .note-actions {
             display: flex;
-            gap: 4px;
+            gap: 6px;
           }
+
+          /* Enhanced action buttons */
           .note-delete-btn,
           .note-close-btn {
-            background: none;
+            background: rgba(255, 255, 255, 0.2);
             border: none;
             cursor: pointer;
-            padding: 2px;
-            border-radius: 4px;
-            transition: background-color 0.2s;
+            padding: 6px;
+            border-radius: 6px;
+            transition: all 0.2s ease;
+            backdrop-filter: blur(10px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
           }
+
           .note-delete-btn {
-            color: #ef4444;
+            color: #ffffff;
           }
+
           .note-delete-btn:hover {
-            background-color: #fee2e2;
+            background: rgba(239, 68, 68, 0.9);
+            transform: scale(1.1);
+            box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
           }
+
           .note-close-btn {
-            color: #6b7280;
+            color: #ffffff;
           }
+
           .note-close-btn:hover {
-            background-color: #e5e7eb;
+            background: rgba(255, 255, 255, 0.3);
+            transform: scale(1.1);
           }
+
+          /* Enhanced content area */
           .note-content {
-            padding: 12px;
-            max-height: 200px;
+            padding: 16px;
+            max-height: 250px;
             overflow-y: auto;
+            background: #ffffff;
           }
+
+          .note-content::-webkit-scrollbar {
+            width: 6px;
+          }
+
+          .note-content::-webkit-scrollbar-track {
+            background: #f1f5f9;
+            border-radius: 10px;
+          }
+
+          .note-content::-webkit-scrollbar-thumb {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 10px;
+          }
+
           .note-content p {
             margin: 0;
-            font-size: 13px;       
-            color: #374151;
-            line-height: 1.5;
+            font-size: 14px;       
+            color: #1e293b;
+            line-height: 1.6;
+            padding: 8px;
+            background: #f8fafc;
+            border-radius: 8px;
+            border-left: 3px solid #667eea;
           }
+
+          /* Enhanced color picker */
+          .color-picker {
+            margin-top: 12px;
+            padding-top: 12px;
+            border-top: 1px solid #e2e8f0;
+          }
+
+          .color-picker label {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 12px;
+            font-weight: 600;
+            color: #475569;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+          }
+
+          .color-picker label::before {
+            content: '🎨';
+            font-size: 14px;
+          }
+
           .color-picker input[type="color"] {
-            padding: 2px;
+            padding: 4px;
             width: 100%;
-            height: 32px;
+            height: 40px;
+            border-radius: 8px;
+            border: 2px solid #e2e8f0;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            background: #ffffff;
+          }
+
+          .color-picker input[type="color"]:hover {
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+          }
+
+          .color-picker input[type="color"]::-webkit-color-swatch-wrapper {
+            padding: 4px;
+          }
+
+          .color-picker input[type="color"]::-webkit-color-swatch {
+            border: none;
             border-radius: 4px;
-            border: 1px solid #d1d5db;
+            box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.1);
           }
         `}
-      </style>
+      </style>        
     </div>
   );
 }

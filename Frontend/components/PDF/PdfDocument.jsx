@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useState, useRef, memo, useCallback } from 'react'; 
+import { useEffect, useState, useRef, memo, useCallback } from 'react';
 import { Document, Page, pdfjs } from 'react-pdf';
 import { Card, CardContent } from '../ui/card';
 import { MessageSquare, Trash2, X } from 'lucide-react';
@@ -15,7 +15,11 @@ const debounce = (func, wait) => {
 
 // Memoized PdfPage component
 const PdfPage = memo(
-  ({ pageNum, scale, rotation, isRendered, pageAnnotations, onRenderSuccess, customTextRenderer, tool, isZoomingRef, canvasRefs }) => {
+  ({ pageNum, scale, rotation, isRendered, onRenderSuccess, customTextRenderer, tool, isZoomingRef, canvasRefs }) => {
+    const pageCustomTextRenderer = useCallback(
+      ({ str, itemIndex }) => customTextRenderer({ str, itemIndex, pageNum }),
+      [customTextRenderer, pageNum] // Stable deps: customTextRenderer is memoized, pageNum is constant.
+    );
     const canvasRef = useRef(null);
 
     useEffect(() => {
@@ -35,7 +39,7 @@ const PdfPage = memo(
           scale={scale}
           rotate={rotation}
           onRenderSuccess={() => onRenderSuccess(pageNum)}
-          customTextRenderer={customTextRenderer}
+          customTextRenderer={pageCustomTextRenderer}
         />
         <canvas
           ref={canvasRef}
@@ -59,7 +63,6 @@ const PdfPage = memo(
       prevProps.scale === nextProps.scale &&
       prevProps.rotation === nextProps.rotation &&
       prevProps.isRendered === nextProps.isRendered &&
-      prevProps.pageAnnotations === nextProps.pageAnnotations &&
       prevProps.customTextRenderer === nextProps.customTextRenderer &&
       prevProps.tool === nextProps.tool &&
       prevProps.isZoomingRef === nextProps.isZoomingRef
@@ -104,8 +107,8 @@ function PdfDocument({
   const [isErasing, setIsErasing] = useState(false);
   const [lastPoint, setLastPoint] = useState(null);
   const [noteState, setNoteState] = useState({ activeNoteId: null, x: 0, y: 0 });
-  
-  const { activeNoteId } = noteState; 
+
+  const { activeNoteId } = noteState;
 
   const canvasRefs = useRef({});
   const drawingDataRefs = useRef({});
@@ -515,9 +518,9 @@ function PdfDocument({
       if (e.target.classList.contains('note-icon')) {
         // FIX: Stop propagation to prevent this click from triggering other
         // mouse/text layer events that lead to flickering/double-renders.
-        e.stopPropagation(); 
-        e.preventDefault(); 
-        
+        e.stopPropagation();
+        e.preventDefault();
+
         const annotationId = e.target.getAttribute('data-annotation-id');
         toggleNoteBox(annotationId, e);
       }
@@ -534,6 +537,28 @@ function PdfDocument({
       }
     };
   }, []); // toggleNoteBox is stable due to using state setter
+
+  // Keep active highlight styling in sync without re-rendering text layer
+  useEffect(() => {
+    const container = pdfContainerRef.current;
+    if (!container) return;
+
+    // Remove active state from all previously active highlights
+    container
+      .querySelectorAll(
+        '.react-pdf__Page__textContent.textLayer .highlight-with-note.active-highlight'
+      )
+      .forEach((el) => el.classList.remove('active-highlight'));
+
+    // Add active state to the currently selected annotation highlights
+    if (noteState.activeNoteId) {
+      container
+        .querySelectorAll(
+          `.react-pdf__Page__textContent.textLayer [data-annotation-id="${noteState.activeNoteId}"]`
+        )
+        .forEach((el) => el.classList.add('active-highlight'));
+    }
+  }, [noteState.activeNoteId, pdfContainerRef]);
 
   // Handle color change for an annotation
   const handleColorChange = (annotationId, newColor) => {
@@ -553,14 +578,60 @@ function PdfDocument({
       // Filter annotations specific to this page
       const pageAnnotations = annotations.filter((ann) => ann.page === pageNum);
 
-      // ... (Search highlighting logic omitted for brevity, assumed to be correct)
+      if (searchText && searchResults.length > 0) {
+        const searchTextForMatch = matchCase ? searchText : searchText.toLowerCase();
+        const parts = [];
+        let index = 0;
+        const pageText = textLayerRef.current[pageNum] || '';
+        let absoluteIndex = pageText.indexOf(str);
+
+        while (index < str.length) {
+          const searchIndex = matchCase
+            ? str.indexOf(searchText, index)
+            : str.toLowerCase().indexOf(searchTextForMatch, index);
+          if (searchIndex === -1) {
+            parts.push(str.slice(index));
+            break;
+          }
+
+          const absoluteStartIndex = absoluteIndex + searchIndex;
+          const match = searchResults.find(
+            (m) => m.page === pageNum && m.startIndex === absoluteStartIndex
+          );
+
+          if (match) {
+            const matchText = str.slice(searchIndex, searchIndex + searchText.length);
+            const highlightStyle =
+              highlightAll && match.matchIndex !== currentMatch
+                ? 'background-color: #ADD8E6; color: black; padding: 2px 4px;'
+                : match.matchIndex === currentMatch
+                  ? 'background-color: #4169E1; color: white; padding: 2px 4px;'
+                  : '';
+
+            if (highlightStyle) {
+              parts.push(str.slice(index, searchIndex));
+              parts.push(
+                `<mark class="search-match${match.matchIndex === currentMatch ? ' active-match' : ''
+                }" data-match-index="${match.matchIndex}" style="${highlightStyle}">${matchText}</mark>`
+              );
+            } else {
+              parts.push(str.slice(index, searchIndex + searchText.length));
+            }
+          } else {
+            parts.push(str.slice(index, searchIndex + searchText.length));
+          }
+
+          index = searchIndex + searchText.length;
+          absoluteIndex += searchIndex + searchText.length;
+        }
+
+        if (parts.length > 0) {
+          result = parts.join('');
+        }
+      }
 
       pageAnnotations.forEach((ann) => {
         const hasNote = typeof ann.note === 'string' && ann.note.trim().length > 0;
-        
-        // Check if this is the currently active highlight
-        const isActiveHighlight = ann.id === activeNoteId;
-
         if (
           hasNote &&
           ann.text.includes(str) &&
@@ -572,7 +643,7 @@ function PdfDocument({
           const normalizedStr = str.trim().toLowerCase();
           const normalizedAnnText = ann.normalizedText || ann.text.trim().toLowerCase();
           const absoluteIndex = ann.startIndex || pageText.indexOf(str);
-          
+
           const isStartOfAnnotation =
             absoluteIndex !== -1 &&
             normalizedAnnText.includes(normalizedStr) &&
@@ -585,17 +656,13 @@ function PdfDocument({
             }
             firstMatchForAnnotation.current[pageNum][ann.id] = { index: absoluteIndex };
           }
-
-          let className = 'highlight-with-note';
-          if (isActiveHighlight) {
-            className += ' active-highlight'; // <-- Apply new class for active state
-          }
+          const className = 'highlight-with-note';
           const style = `background-color: ${ann.color}; color: black; position: relative;`;
-          
+
           if (isStartOfAnnotation) {
             // Include a more robust HTML structure for the icon to avoid text layer issues
             const noteIconHtml = `<span class="note-icon" data-annotation-id="${ann.id}" style="display: inline-block; width: 16px; height: 16px; margin-right: 4px; cursor: pointer;"></span>`;
-            
+
             // Note: If the icon is causing issues by being part of the same span, you might need to try putting it 
             // *before* the text span and using absolute positioning to move it to the end of the highlight.
             // For now, let's assume it works inline with the event propagation fix.
@@ -617,7 +684,6 @@ function PdfDocument({
       annotations,
       textLayerRef,
       firstMatchForAnnotation,
-      activeNoteId, 
     ]
   );
   // --- END MEMOIZED customTextRenderer ---
@@ -627,21 +693,19 @@ function PdfDocument({
   return (
     <div
       ref={pdfContainerRef}
-      className={`flex dark:bg-gray-800 ${
-        scrollMode === 'vertical' ? 'flex-col' : scrollMode === 'horizontal' ? 'flex-row' : 'flex-row flex-wrap'
-      } items-center py-3 overflow-auto will-change-transform ${
-        tool === 'hand'
+      className={`flex dark:bg-gray-800 ${scrollMode === 'vertical' ? 'flex-col' : scrollMode === 'horizontal' ? 'flex-row' : 'flex-row flex-wrap'
+        } items-center py-3 overflow-auto will-change-transform ${tool === 'hand'
           ? isPanning
             ? 'cursor-grabbing hand-tool-active'
             : 'cursor-grab hand-tool-active'
           : tool === 'highlight' || tool === 'text'
-          ? 'cursor-text'
-          : tool === 'pen'
-          ? 'cursor-crosshair'
-          : tool === 'eraser'
-          ? 'cursor-pointer'
-          : 'cursor-default'
-      }`}
+            ? 'cursor-text'
+            : tool === 'pen'
+              ? 'cursor-crosshair'
+              : tool === 'eraser'
+                ? 'cursor-pointer'
+                : 'cursor-default'
+        }`}
       style={{
         maxHeight: 'calc(100vh - 60px)',
         backgroundColor: '#e5e7eb',
@@ -654,9 +718,8 @@ function PdfDocument({
         <Document
           file={decodeURIComponent(pdfUrl)}
           onLoadSuccess={onDocumentLoadSuccess}
-          className={`flex ${
-            scrollMode === 'vertical' ? 'flex-col' : scrollMode === 'horizontal' ? 'flex-row' : 'flex-row flex-wrap'
-          } items-center`}
+          className={`flex ${scrollMode === 'vertical' ? 'flex-col' : scrollMode === 'horizontal' ? 'flex-row' : 'flex-row flex-wrap'
+            } items-center`}
           loading={
             <div className="flex items-center justify-center h-screen">
               <div className="flex flex-col items-center justify-center gap-3" role="status" aria-live="alert">
@@ -677,22 +740,19 @@ function PdfDocument({
           {Array.from({ length: numPages || 0 }, (_, index) => {
             const pageNum = index + 1;
             const isRendered = renderedPages[pageNum];
-            const pageAnnotations = annotations.filter((ann) => ann.page === pageNum);
 
             return (
               <div
                 key={pageNum}
                 ref={(el) => (pageRefs.current[index] = el)}
                 data-page-number={pageNum}
-                className={`mb-6 relative ${
-                  scrollMode === 'horizontal' ? 'mr-6' : scrollMode === 'wrapped' ? 'm-2' : ''
-                }`}
+                className={`mb-6 relative ${scrollMode === 'horizontal' ? 'mr-6' : scrollMode === 'wrapped' ? 'm-2' : ''
+                  }`}
                 style={scrollMode === 'wrapped' ? { flex: '0 0 auto', maxWidth: '45%' } : {}}
               >
                 <Card
-                  className={`w-[210mm] h-[297mm] max-w-[90vw] bg-white border border-gray-300 rounded-md shadow-md flex flex-col justify-center items-center p-6 mx-auto ${
-                    isRendered ? 'hidden' : 'block'
-                  }`}
+                  className={`w-[210mm] h-[297mm] max-w-[90vw] bg-white border border-gray-300 rounded-md shadow-md flex flex-col justify-center items-center p-6 mx-auto ${isRendered ? 'hidden' : 'block'
+                    }`}
                   style={{ transition: 'opacity 0.3s ease' }}
                 >
                   <CardContent className="w-full relative z-10">
@@ -708,12 +768,9 @@ function PdfDocument({
                   scale={scale}
                   rotation={rotation}
                   isRendered={isRendered}
-                  pageAnnotations={pageAnnotations}
                   onRenderSuccess={onPageRenderSuccess}
                   // Pass the memoized function and its required dynamic data (pageNum)
-                  customTextRenderer={({ str, itemIndex }) => 
-                    memoizedCustomTextRenderer({ str, itemIndex, pageNum })
-                  }
+                  customTextRenderer={memoizedCustomTextRenderer} // Pass stable renderer; PdfPage handles pageNum internally.
                   tool={tool}
                   isZoomingRef={isZoomingRef}
                   canvasRefs={canvasRefs}
@@ -731,8 +788,8 @@ function PdfDocument({
               className="note-overlay"
               style={{
                 position: 'absolute',
-                top: noteState.y, 
-                left: noteState.x, 
+                top: noteState.y,
+                left: noteState.x,
                 zIndex: 200,
               }}
             >
@@ -742,8 +799,8 @@ function PdfDocument({
                   <div className="note-actions">
                     <button
                       onClick={() => {
-                        deleteAnnotation(noteState.activeNoteId); 
-                        setNoteState({ activeNoteId: null, x: 0, y: 0 }); 
+                        deleteAnnotation(noteState.activeNoteId);
+                        setNoteState({ activeNoteId: null, x: 0, y: 0 });
                       }}
                       className="note-delete-btn"
                       title="Delete Note"
@@ -752,7 +809,7 @@ function PdfDocument({
                     </button>
                     <button
                       onClick={() => {
-                        setNoteState({ activeNoteId: null, x: 0, y: 0 }); 
+                        setNoteState({ activeNoteId: null, x: 0, y: 0 });
                       }}
                       className="note-close-btn"
                       title="Close Note"
@@ -996,7 +1053,7 @@ function PdfDocument({
             box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.1);
           }
         `}
-      </style>        
+      </style>
     </div>
   );
 }
@@ -1011,7 +1068,7 @@ export default memo(PdfDocument, (prevProps, nextProps) => {
     prevProps.matchCase === nextProps.matchCase &&
     prevProps.highlightAll === nextProps.highlightAll &&
     prevProps.selectedColor === nextProps.selectedColor &&
-    prevProps.selectedPenColor === nextProps.selectedPenColor &&    
+    prevProps.selectedPenColor === nextProps.selectedPenColor &&
     prevProps.scrollMode === nextProps.scrollMode &&
     prevProps.tool === nextProps.tool &&
     prevProps.annotations === nextProps.annotations &&

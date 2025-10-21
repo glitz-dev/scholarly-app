@@ -15,7 +15,7 @@ const debounce = (func, wait) => {
 
 // Memoized PdfPage component
 const PdfPage = memo(
-  ({ pageNum, scale, rotation, isRendered, pageAnnotations, onRenderSuccess, customTextRenderer, tool, isZoomingRef, canvasRefs }) => {
+  ({ pageNum, scale, rotation, isRendered, onRenderSuccess, customTextRenderer, tool, isZoomingRef, canvasRefs }) => {
     const canvasRef = useRef(null);
 
     useEffect(() => {
@@ -59,7 +59,6 @@ const PdfPage = memo(
       prevProps.scale === nextProps.scale &&
       prevProps.rotation === nextProps.rotation &&
       prevProps.isRendered === nextProps.isRendered &&
-      prevProps.pageAnnotations === nextProps.pageAnnotations &&
       prevProps.customTextRenderer === nextProps.customTextRenderer &&
       prevProps.tool === nextProps.tool &&
       prevProps.isZoomingRef === nextProps.isZoomingRef
@@ -535,6 +534,28 @@ function PdfDocument({
     };
   }, []); // toggleNoteBox is stable due to using state setter
 
+  // Keep active highlight styling in sync without re-rendering text layer
+  useEffect(() => {
+    const container = pdfContainerRef.current;
+    if (!container) return;
+
+    // Remove active state from all previously active highlights
+    container
+      .querySelectorAll(
+        '.react-pdf__Page__textContent.textLayer .highlight-with-note.active-highlight'
+      )
+      .forEach((el) => el.classList.remove('active-highlight'));
+
+    // Add active state to the currently selected annotation highlights
+    if (noteState.activeNoteId) {
+      container
+        .querySelectorAll(
+          `.react-pdf__Page__textContent.textLayer [data-annotation-id="${noteState.activeNoteId}"]`
+        )
+        .forEach((el) => el.classList.add('active-highlight'));
+    }
+  }, [noteState.activeNoteId, pdfContainerRef]);
+
   // Handle color change for an annotation
   const handleColorChange = (annotationId, newColor) => {
     setAnnotations((prev) =>
@@ -557,9 +578,6 @@ function PdfDocument({
 
       pageAnnotations.forEach((ann) => {
         const hasNote = typeof ann.note === 'string' && ann.note.trim().length > 0;
-        
-        // Check if this is the currently active highlight
-        const isActiveHighlight = ann.id === activeNoteId;
 
         if (
           hasNote &&
@@ -585,11 +603,8 @@ function PdfDocument({
             }
             firstMatchForAnnotation.current[pageNum][ann.id] = { index: absoluteIndex };
           }
-
-          let className = 'highlight-with-note';
-          if (isActiveHighlight) {
-            className += ' active-highlight'; // <-- Apply new class for active state
-          }
+          
+          const className = 'highlight-with-note';
           const style = `background-color: ${ann.color}; color: black; position: relative;`;
           
           if (isStartOfAnnotation) {
@@ -617,7 +632,6 @@ function PdfDocument({
       annotations,
       textLayerRef,
       firstMatchForAnnotation,
-      activeNoteId, 
     ]
   );
   // --- END MEMOIZED customTextRenderer ---
@@ -677,7 +691,6 @@ function PdfDocument({
           {Array.from({ length: numPages || 0 }, (_, index) => {
             const pageNum = index + 1;
             const isRendered = renderedPages[pageNum];
-            const pageAnnotations = annotations.filter((ann) => ann.page === pageNum);
 
             return (
               <div
@@ -708,7 +721,6 @@ function PdfDocument({
                   scale={scale}
                   rotation={rotation}
                   isRendered={isRendered}
-                  pageAnnotations={pageAnnotations}
                   onRenderSuccess={onPageRenderSuccess}
                   // Pass the memoized function and its required dynamic data (pageNum)
                   customTextRenderer={({ str, itemIndex }) => 

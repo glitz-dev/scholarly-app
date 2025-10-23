@@ -121,6 +121,8 @@ const PdfViewer = ({ pdfUrl: initialPdfUrl }) => {
             note: note,
             color: '#F7A5A5',
             position: currentHighlight.position,
+            ranges: currentHighlight.ranges || [],
+            firstSpanIndex: currentHighlight.firstSpanIndex ?? null,
           },
         ]);
         setShowNoteForm(false);
@@ -230,11 +232,63 @@ const PdfViewer = ({ pdfUrl: initialPdfUrl }) => {
         const range = selection.getRangeAt(0);
         const rect = range.getBoundingClientRect();
 
+        // Identify the page element for this selection
+        const startNode = range.startContainer;
+        const pageEl = (startNode.nodeType === 1
+          ? startNode
+          : startNode.parentElement
+        )?.closest('[data-page-number]');
+
+        // Build precise ranges across text layer spans within the page
+        let ranges = [];
+        let firstSpanIndex = null;
+        if (pageEl) {
+          const textLayer = pageEl.querySelector(
+            '.react-pdf__Page__textContent.textLayer'
+          );
+          if (textLayer) {
+            // Prefer pdf.js span structure with role="presentation"; fallback to all spans
+            const spanList = Array.from(
+              textLayer.querySelectorAll('span[role="presentation"]')
+            );
+            const spans = spanList.length
+              ? spanList
+              : Array.from(textLayer.querySelectorAll('span'));
+
+            const selRange = range.cloneRange();
+
+            spans.forEach((span, idx) => {
+              const textNode = span.firstChild;
+              if (!textNode || textNode.nodeType !== Node.TEXT_NODE) return;
+              const spanRange = document.createRange();
+              spanRange.selectNodeContents(textNode);
+
+              const overlaps =
+                selRange.compareBoundaryPoints(Range.END_TO_START, spanRange) < 0 &&
+                selRange.compareBoundaryPoints(Range.START_TO_END, spanRange) > 0;
+
+              if (!overlaps) return;
+
+              const isStartInSpan = span.contains(selRange.startContainer);
+              const isEndInSpan = span.contains(selRange.endContainer);
+              const startOffset = isStartInSpan ? selRange.startOffset : 0;
+              const endOffset = isEndInSpan ? selRange.endOffset : textNode.length;
+
+              if (endOffset > startOffset) {
+                ranges.push({ spanIndex: idx, startOffset, endOffset });
+                if (firstSpanIndex === null || idx < firstSpanIndex) firstSpanIndex = idx;
+              }
+            });
+          }
+        }
+
         setSelectedText(selectedText);
         setCurrentHighlight({
           text: selectedText,
           page: pageNumber,
           position: { x: rect.left, y: rect.top, width: rect.width, height: rect.height },
+          ranges,
+          firstSpanIndex,
         });
 
         const menu = contextMenuRef.current;
@@ -522,7 +576,23 @@ const PdfViewer = ({ pdfUrl: initialPdfUrl }) => {
   };
 
   const handleHighlight = () => {
-    contextMenuRef.current.style.display = 'none';
+    const menu = contextMenuRef.current;
+    if (menu) menu.style.display = 'none';
+    if (!currentHighlight || !currentHighlight.ranges || currentHighlight.ranges.length === 0) return;
+    setAnnotations((prev) => [
+      ...prev,
+      {
+        id: uuid(),
+        text: currentHighlight.text,
+        page: currentHighlight.page,
+        note: '',
+        color: selectedColor,
+        position: currentHighlight.position,
+        ranges: currentHighlight.ranges,
+        firstSpanIndex: currentHighlight.firstSpanIndex,
+      },
+    ]);
+    setCurrentHighlight(null);
   };
 
   return (

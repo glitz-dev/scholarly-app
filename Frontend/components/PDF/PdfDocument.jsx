@@ -630,48 +630,55 @@ function PdfDocument({
         }
       }
 
-      pageAnnotations.forEach((ann) => {
-        const hasNote = typeof ann.note === 'string' && ann.note.trim().length > 0;
-        if (
-          hasNote &&
-          ann.text.includes(str) &&
-          str.length > 4 &&
-          /\w/.test(str) &&
-          str.trim().length > 0
-        ) {
-          const pageText = textLayerRef.current[pageNum] || '';
-          const normalizedStr = str.trim().toLowerCase();
-          const normalizedAnnText = ann.normalizedText || ann.text.trim().toLowerCase();
-          const absoluteIndex = ann.startIndex || pageText.indexOf(str);
+      // Precise span-based highlighting for annotations created from selection
+      if (Array.isArray(pageAnnotations) && pageAnnotations.length > 0) {
+        const matchedSpans = pageAnnotations.filter(
+          (ann) => Array.isArray(ann.ranges) && ann.ranges.some((r) => r.spanIndex === itemIndex)
+        );
 
-          const isStartOfAnnotation =
-            absoluteIndex !== -1 &&
-            normalizedAnnText.includes(normalizedStr) &&
-            (!firstMatchForAnnotation.current[pageNum]?.[ann.id] ||
-              firstMatchForAnnotation.current[pageNum][ann.id].index === absoluteIndex);
+        if (matchedSpans.length > 0) {
+          // If multiple annotations affect this span, layer them; render note icon only for the first span of each ann
+          let html = '';
+          let cursor = 0;
+          // Build segments based on all ranges for this span
+          const segments = [];
+          matchedSpans.forEach((ann) => {
+            ann.ranges
+              .filter((r) => r.spanIndex === itemIndex && r.endOffset > r.startOffset)
+              .forEach((r) => {
+                segments.push({
+                  start: Math.max(0, Math.min(str.length, r.startOffset)),
+                  end: Math.max(0, Math.min(str.length, r.endOffset)),
+                  ann,
+                });
+              });
+          });
+          // Sort by start
+          segments.sort((a, b) => a.start - b.start || a.end - b.end);
 
-          if (isStartOfAnnotation) {
-            if (!firstMatchForAnnotation.current[pageNum]) {
-              firstMatchForAnnotation.current[pageNum] = {};
+          // Merge overlapping by rendering in order; simple approach adds wrappers sequentially
+          segments.forEach(({ start, end, ann }) => {
+            if (start > cursor) {
+              html += str.slice(cursor, start);
             }
-            firstMatchForAnnotation.current[pageNum][ann.id] = { index: absoluteIndex };
-          }
-          const className = 'highlight-with-note';
-          const style = `background-color: ${ann.color}; color: black; position: relative;`;
+            const isFirstSpan = ann.firstSpanIndex === itemIndex;
+            const className = 'highlight-with-note';
+            const style = `background-color: ${ann.color}; color: black; position: relative;`;
+            const noteIconHtml = isFirstSpan
+              ? `<span class="note-icon" data-annotation-id="${ann.id}" style="display: inline-block; width: 16px; height: 16px; margin-right: 4px; cursor: pointer;"></span>`
+              : '';
+            const textPart = str.slice(start, end);
+            html += `<span class="${className}" style="${style}" data-annotation-id="${ann.id}">${noteIconHtml}${textPart}</span>`;
+            cursor = end;
+          });
 
-          if (isStartOfAnnotation) {
-            // Include a more robust HTML structure for the icon to avoid text layer issues
-            const noteIconHtml = `<span class="note-icon" data-annotation-id="${ann.id}" style="display: inline-block; width: 16px; height: 16px; margin-right: 4px; cursor: pointer;"></span>`;
-
-            // Note: If the icon is causing issues by being part of the same span, you might need to try putting it 
-            // *before* the text span and using absolute positioning to move it to the end of the highlight.
-            // For now, let's assume it works inline with the event propagation fix.
-            result = `<span class="${className}" style="${style}" data-annotation-id="${ann.id}">${noteIconHtml}${str}</span>`;
-          } else {
-            result = `<span class="${className}" style="${style}" data-annotation-id="${ann.id}">${str}</span>`;
+          if (cursor < str.length) {
+            html += str.slice(cursor);
           }
+
+          result = html || result;
         }
-      });
+      }
 
       return result;
     },

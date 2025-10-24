@@ -833,10 +833,13 @@ function PdfDocument({
           {Array.from({ length: numPages || 0 }, (_, index) => {
             const pageNum = index + 1;
             const isRendered = renderedPages[pageNum];
+            const pageAnnCount = annotations.filter(
+              (ann) => ann.page === pageNum && typeof ann.note === 'string' && ann.note.trim().length > 0
+            ).length;
 
             return (
               <div
-                key={pageNum}
+                key={`${pageNum}-${pageAnnCount}`}
                 ref={(el) => (pageRefs.current[index] = el)}
                 data-page-number={pageNum}
                 className={`mb-6 relative ${scrollMode === 'horizontal' ? 'mr-6' : scrollMode === 'wrapped' ? 'm-2' : ''

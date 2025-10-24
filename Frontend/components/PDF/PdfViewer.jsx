@@ -49,6 +49,8 @@ const PdfViewer = ({ pdfUrl: initialPdfUrl }) => {
   const { showToast } = useCustomToast();
   const searchInputRef = useRef(null);
   const textLayerRef = useRef({});
+  // Map pageNum -> array of text item offsets: [{ start, end, str }]
+  const textItemsMapRef = useRef({});
   const pageRefs = useRef([]);
   const fileInputRef = useRef(null);
   const pdfContainerRef = useRef(null);
@@ -121,6 +123,8 @@ const PdfViewer = ({ pdfUrl: initialPdfUrl }) => {
             note: note,
             color: '#F7A5A5',
             position: currentHighlight.position,
+            startIndex: currentHighlight.startIndex,
+            endIndex: currentHighlight.endIndex,
           },
         ]);
         setShowNoteForm(false);
@@ -230,12 +234,76 @@ const PdfViewer = ({ pdfUrl: initialPdfUrl }) => {
         const range = selection.getRangeAt(0);
         const rect = range.getBoundingClientRect();
 
-        setSelectedText(selectedText);
-        setCurrentHighlight({
+        // Attempt to compute absolute start/end indices within the page text
+        const closestEl = (node, selector) => {
+          let el = node && node.nodeType === Node.ELEMENT_NODE ? node : node?.parentElement;
+          return el ? el.closest(selector) : null;
+        };
+
+        const computeOffsetWithinElement = (wrapperEl, targetNode, nodeOffset) => {
+          if (!wrapperEl) return 0;
+          const walker = document.createTreeWalker(wrapperEl, NodeFilter.SHOW_TEXT);
+          let total = 0;
+          let current;
+          while ((current = walker.nextNode())) {
+            if (current === targetNode) {
+              total += Math.min(nodeOffset, current.nodeValue?.length || 0);
+              break;
+            } else {
+              total += current.nodeValue?.length || 0;
+            }
+          }
+          return total;
+        };
+
+        const startItemWrapper = closestEl(range.startContainer, '[data-item-index]');
+        const endItemWrapper = closestEl(range.endContainer, '[data-item-index]');
+        const startPageWrapper = closestEl(range.startContainer, '[data-page-number]');
+        const endPageWrapper = closestEl(range.endContainer, '[data-page-number]');
+
+        let payload = {
           text: selectedText,
           page: pageNumber,
           position: { x: rect.left, y: rect.top, width: rect.width, height: rect.height },
-        });
+        };
+
+        if (startItemWrapper && endItemWrapper && startPageWrapper && endPageWrapper) {
+          const selPageStart = parseInt(startPageWrapper.getAttribute('data-page-number'));
+          const selPageEnd = parseInt(endPageWrapper.getAttribute('data-page-number'));
+          if (Number.isInteger(selPageStart) && selPageStart === selPageEnd) {
+            const itemIndexStart = parseInt(startItemWrapper.getAttribute('data-item-index'));
+            const itemIndexEnd = parseInt(endItemWrapper.getAttribute('data-item-index'));
+            const items = textItemsMapRef.current[selPageStart] || [];
+            if (
+              Number.isInteger(itemIndexStart) &&
+              Number.isInteger(itemIndexEnd) &&
+              items[itemIndexStart] &&
+              items[itemIndexEnd]
+            ) {
+              const localStart = computeOffsetWithinElement(
+                startItemWrapper,
+                range.startContainer,
+                range.startOffset
+              );
+              const localEnd = computeOffsetWithinElement(
+                endItemWrapper,
+                range.endContainer,
+                range.endOffset
+              );
+              const absStart = items[itemIndexStart].start + localStart;
+              const absEnd = items[itemIndexEnd].start + localEnd;
+              payload = {
+                ...payload,
+                page: selPageStart,
+                startIndex: Math.min(absStart, absEnd),
+                endIndex: Math.max(absStart, absEnd),
+              };
+            }
+          }
+        }
+
+        setSelectedText(selectedText);
+        setCurrentHighlight(payload);
 
         const menu = contextMenuRef.current;
         if (menu) {
@@ -611,6 +679,7 @@ const PdfViewer = ({ pdfUrl: initialPdfUrl }) => {
           onDocumentLoadSuccess={onDocumentLoadSuccess}
           setHasTextLayer={setHasTextLayer}
           textLayerRef={textLayerRef}
+          textItemsMapRef={textItemsMapRef}
           setSearchResults={setSearchResults}
           setCurrentMatch={setCurrentMatch}
           showToast={showToast}

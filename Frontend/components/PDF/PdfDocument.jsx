@@ -85,6 +85,7 @@ function PdfDocument({
   onDocumentLoadSuccess,
   setHasTextLayer,
   textLayerRef,
+  textItemsMapRef,
   setSearchResults,
   setCurrentMatch,
   showToast,
@@ -395,9 +396,26 @@ function PdfDocument({
         .getDocument(decodeURIComponent(pdfUrl))
         .promise.then((pdf) => pdf.getPage(pageNumber));
       const textContent = await page.getTextContent();
-      const text = textContent.items.map((item) => item.str).join(' ');
+      const items = textContent.items.map((item) => item.str);
+      const text = items.join(' ');
       textLayerRef.current[pageNumber] = text;
       console.log(`Text extracted for page ${pageNumber}:`, text.substring(0, 100) + '...');
+      // Build item offset map aligned with join(' ')
+      try {
+        let cursor = 0;
+        const offsets = items.map((s, idx) => {
+          const start = cursor;
+          const end = start + (s ? s.length : 0);
+          // advance cursor (+1 space between items except after last)
+          cursor = end + (idx < items.length - 1 ? 1 : 0);
+          return { start, end, str: s ?? '' };
+        });
+        if (textItemsMapRef && textItemsMapRef.current) {
+          textItemsMapRef.current[pageNumber] = offsets;
+        }
+      } catch (e) {
+        console.warn('Failed building text item offsets for page', pageNumber, e);
+      }
       if (!text.trim()) {
         console.warn(`No text content found on page ${pageNumber}. PDF may lack text layer.`);
         setHasTextLayer(false);
@@ -630,50 +648,97 @@ function PdfDocument({
         }
       }
 
-      pageAnnotations.forEach((ann) => {
-        const hasNote = typeof ann.note === 'string' && ann.note.trim().length > 0;
-        if (
-          hasNote &&
-          ann.text.includes(str) &&
-          str.length > 4 &&
-          /\w/.test(str) &&
-          str.trim().length > 0
-        ) {
-          const pageText = textLayerRef.current[pageNum] || '';
-          const normalizedStr = str.trim().toLowerCase();
-          const normalizedAnnText = ann.normalizedText || ann.text.trim().toLowerCase();
-          const absoluteIndex = ann.startIndex || pageText.indexOf(str);
-
-          const isStartOfAnnotation =
-            absoluteIndex !== -1 &&
-            normalizedAnnText.includes(normalizedStr) &&
-            (!firstMatchForAnnotation.current[pageNum]?.[ann.id] ||
-              firstMatchForAnnotation.current[pageNum][ann.id].index === absoluteIndex);
-
-          if (isStartOfAnnotation) {
-            if (!firstMatchForAnnotation.current[pageNum]) {
-              firstMatchForAnnotation.current[pageNum] = {};
+      // Annotation highlighting based on absolute index ranges
+      try {
+        const itemOffsets = textItemsMapRef?.current?.[pageNum]?.[itemIndex];
+        if (itemOffsets) {
+          const itemStart = itemOffsets.start;
+          const itemEnd = itemOffsets.end;
+          // Build intervals for all overlapping annotations on this item
+          const intervals = [];
+          for (const ann of pageAnnotations) {
+            const hasNote = typeof ann.note === 'string' && ann.note.trim().length > 0;
+            const hasIndices = typeof ann.startIndex === 'number' && typeof ann.endIndex === 'number';
+            if (!hasNote || !hasIndices) continue;
+            if (ann.endIndex <= itemStart || ann.startIndex >= itemEnd) continue; // no overlap
+            const startInItem = Math.max(ann.startIndex, itemStart) - itemStart;
+            const endInItem = Math.min(ann.endIndex, itemEnd) - itemStart;
+            if (endInItem > startInItem) {
+              intervals.push({ start: startInItem, end: endInItem, ann });
             }
-            firstMatchForAnnotation.current[pageNum][ann.id] = { index: absoluteIndex };
           }
-          const className = 'highlight-with-note';
-          const style = `background-color: ${ann.color}; color: black; position: relative;`;
-
-          if (isStartOfAnnotation) {
-            // Include a more robust HTML structure for the icon to avoid text layer issues
-            const noteIconHtml = `<span class="note-icon" data-annotation-id="${ann.id}" style="display: inline-block; width: 16px; height: 16px; margin-right: 4px; cursor: pointer;"></span>`;
-
-            // Note: If the icon is causing issues by being part of the same span, you might need to try putting it 
-            // *before* the text span and using absolute positioning to move it to the end of the highlight.
-            // For now, let's assume it works inline with the event propagation fix.
-            result = `<span class="${className}" style="${style}" data-annotation-id="${ann.id}">${noteIconHtml}${str}</span>`;
-          } else {
-            result = `<span class="${className}" style="${style}" data-annotation-id="${ann.id}">${str}</span>`;
+          if (intervals.length > 0) {
+            intervals.sort((a, b) => a.start - b.start || a.end - b.end);
+            const parts = [];
+            let cursor = 0;
+            for (const seg of intervals) {
+              if (seg.start > cursor) {
+                parts.push(str.slice(cursor, seg.start));
+              }
+              const segText = str.slice(seg.start, seg.end);
+              const className = 'highlight-with-note';
+              const style = `background-color: ${seg.ann.color}; color: black; position: relative;`;
+              // Include icon once at the very start of the annotation range
+              let noteIconHtml = '';
+              const isStartOfAnnotation = itemStart + seg.start === seg.ann.startIndex;
+              if (isStartOfAnnotation) {
+                if (!firstMatchForAnnotation.current[pageNum]) {
+                  firstMatchForAnnotation.current[pageNum] = {};
+                }
+                if (!firstMatchForAnnotation.current[pageNum][seg.ann.id]) {
+                  firstMatchForAnnotation.current[pageNum][seg.ann.id] = { index: seg.ann.startIndex };
+                  noteIconHtml = `<span class="note-icon" data-annotation-id="${seg.ann.id}" style="display: inline-block; width: 16px; height: 16px; margin-right: 4px; cursor: pointer;"></span>`;
+                }
+              }
+              parts.push(
+                `<span class="${className}" style="${style}" data-annotation-id="${seg.ann.id}">${noteIconHtml}${segText}</span>`
+              );
+              cursor = seg.end;
+            }
+            if (cursor < str.length) {
+              parts.push(str.slice(cursor));
+            }
+            result = parts.join('');
           }
+        } else {
+          // Fallback to previous heuristic when offsets are unavailable
+          pageAnnotations.forEach((ann) => {
+            const hasNote = typeof ann.note === 'string' && ann.note.trim().length > 0;
+            if (
+              hasNote &&
+              ann.text &&
+              str &&
+              ann.text.includes(str) &&
+              /\w/.test(str)
+            ) {
+              const pageText = textLayerRef.current[pageNum] || '';
+              const absoluteIndex = ann.startIndex || pageText.indexOf(str);
+              const isStartOfAnnotation =
+                absoluteIndex !== -1 &&
+                (!firstMatchForAnnotation.current[pageNum]?.[ann.id] ||
+                  firstMatchForAnnotation.current[pageNum][ann.id].index === absoluteIndex);
+              if (isStartOfAnnotation) {
+                if (!firstMatchForAnnotation.current[pageNum]) {
+                  firstMatchForAnnotation.current[pageNum] = {};
+                }
+                firstMatchForAnnotation.current[pageNum][ann.id] = { index: absoluteIndex };
+              }
+              const className = 'highlight-with-note';
+              const style = `background-color: ${ann.color}; color: black; position: relative;`;
+              if (isStartOfAnnotation) {
+                const noteIconHtml = `<span class="note-icon" data-annotation-id="${ann.id}" style="display: inline-block; width: 16px; height: 16px; margin-right: 4px; cursor: pointer;"></span>`;
+                result = `<span class="${className}" style="${style}" data-annotation-id="${ann.id}">${noteIconHtml}${str}</span>`;
+              } else {
+                result = `<span class="${className}" style="${style}" data-annotation-id="${ann.id}">${str}</span>`;
+              }
+            }
+          });
         }
-      });
-
-      return result;
+      } catch (e) {
+        console.warn('Annotation rendering error:', e);
+      }
+      // Ensure each item has a data-item-index wrapper to compute selections reliably
+      return `<span data-item-index="${itemIndex}">${result}</span>`;
     },
     [
       searchText,

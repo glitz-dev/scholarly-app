@@ -699,6 +699,34 @@ function PdfDocument({
               parts.push(str.slice(cursor));
             }
             result = parts.join('');
+          } else {
+            // Fallback: no index-based overlap on this item; attempt simple text inclusion highlighting
+            pageAnnotations.forEach((ann) => {
+              const hasNote = typeof ann.note === 'string' && ann.note.trim().length > 0;
+              if (!hasNote) return;
+              if (!ann.text || !str) return;
+              if (!ann.text.includes(str)) return;
+              const pageText = textLayerRef.current[pageNum] || '';
+              const absoluteIndex = ann.startIndex ?? pageText.indexOf(str);
+              const isStartOfAnnotation =
+                absoluteIndex !== -1 &&
+                (!firstMatchForAnnotation.current[pageNum]?.[ann.id] ||
+                  firstMatchForAnnotation.current[pageNum][ann.id].index === absoluteIndex);
+              if (isStartOfAnnotation) {
+                if (!firstMatchForAnnotation.current[pageNum]) {
+                  firstMatchForAnnotation.current[pageNum] = {};
+                }
+                firstMatchForAnnotation.current[pageNum][ann.id] = { index: absoluteIndex };
+              }
+              const className = 'highlight-with-note';
+              const style = `background-color: ${ann.color}; color: black; position: relative;`;
+              if (isStartOfAnnotation) {
+                const noteIconHtml = `<span class="note-icon" data-annotation-id="${ann.id}" style="display: inline-block; width: 16px; height: 16px; margin-right: 4px; cursor: pointer;"></span>`;
+                result = `<span class="${className}" style="${style}" data-annotation-id="${ann.id}">${noteIconHtml}${str}</span>`;
+              } else {
+                result = `<span class="${className}" style="${style}" data-annotation-id="${ann.id}">${str}</span>`;
+              }
+            });
           }
         } else {
           // Fallback to previous heuristic when offsets are unavailable

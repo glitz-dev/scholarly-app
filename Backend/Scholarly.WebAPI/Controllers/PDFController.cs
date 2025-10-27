@@ -324,10 +324,10 @@ namespace Scholarly.WebAPI.Controllers
                                         _GeminiService.SummarizeText_QA_Async(_logger, _ConnectionStrings, AI_HostedApp, record.pdf_summary_id, tBLPDFUPLOAD1.pdf_uploaded_id);
                                     });
 
-                                    Task.Run(async () =>
-                                    {
-                                       _metaDataService.ExtractMetadataAsync(_logger, tBLPDFUPLOAD1.pdf_saved_path, _ConnectionStrings, tBLPDFUPLOAD1.doi_number, tBLPDFUPLOAD1.pdf_uploaded_id);
-                                    });
+                                    //Task.Run(async () =>
+                                    //{
+                                    //   _metaDataService.ExtractMetadataAsync(_logger, tBLPDFUPLOAD1.pdf_saved_path, _ConnectionStrings, tBLPDFUPLOAD1.doi_number, tBLPDFUPLOAD1.pdf_uploaded_id);
+                                    //});
                                 }
                             }
                         }

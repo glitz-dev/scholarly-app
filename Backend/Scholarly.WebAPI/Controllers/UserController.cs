@@ -14,6 +14,9 @@ using System.Reflection;
 using System;
 using Microsoft.AspNetCore.Identity;
 using Scholarly.WebAPI.DataAccess;
+using System.IdentityModel.Tokens.Jwt;
+using Microsoft.IdentityModel.Tokens;
+using System.Security.Claims;
 
 namespace Scholarly.WebAPI.Controllers
 {
@@ -25,11 +28,13 @@ namespace Scholarly.WebAPI.Controllers
         private readonly IConfiguration _config;
         private static Logger _logger = LogManager.GetCurrentClassLogger();
         private readonly IUserDa _IUserDa;
-        public UserController(IConfiguration configuration, SWBDBContext swbDBContext, IUserDa iIUserDa)
+        private readonly IJWTAuthenticationManager _jWTAuthenticationManager;
+        public UserController(IConfiguration configuration, SWBDBContext swbDBContext, IUserDa iIUserDa, IJWTAuthenticationManager jWTAuthenticationManager)
         {
             _config = configuration;
             _swbDBContext = swbDBContext;
             _IUserDa = iIUserDa;
+            _jWTAuthenticationManager =jWTAuthenticationManager;
         }
         [HttpGet]
         [Route("hello")]
@@ -200,6 +205,40 @@ namespace Scholarly.WebAPI.Controllers
                 _logger.Error(exception.Message);
             }
             return Ok(userLogin);
+        }
+
+        [HttpPost("refresh")]
+        public async Task<IActionResult> Refresh([FromBody] TokenModel tokenModel)
+        {
+            if (tokenModel is null)
+                return BadRequest("Invalid client request");
+
+            string accessToken = tokenModel.AccessToken;
+            string refreshToken = tokenModel.RefreshToken;
+
+            var principal = _jWTAuthenticationManager.GetPrincipalFromExpiredToken(accessToken);
+            if (principal == null)
+                return BadRequest("Invalid access token");
+
+            string email = principal.Claims.FirstOrDefault(c => c.Type == "UserMail")?.Value;
+
+            var user = await _swbDBContext.tbl_users.FirstOrDefaultAsync(u => u.emailid == email);
+            if (user == null || user.refresh_token != refreshToken || user.refresh_token_expiry_time <= DateTime.Now)
+                return BadRequest("Invalid refresh token");
+
+            // Generate new tokens
+            var newAccessToken = _jWTAuthenticationManager.AuthenticateAsync(user, _swbDBContext);
+            var newRefreshToken = _jWTAuthenticationManager.GenerateRefreshToken();
+
+            // Update DB
+            user.refresh_token = newRefreshToken;
+            await _swbDBContext.SaveChangesAsync();
+
+            return Ok(new
+            {
+                token = newAccessToken,
+                refreshToken = newRefreshToken
+            });
         }
     }
 }

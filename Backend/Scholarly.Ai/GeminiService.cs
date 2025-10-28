@@ -119,7 +119,7 @@ public class GeminiService : IGeminiService
             var responseContent = await response.Content.ReadAsStringAsync();
             using var jsonDoc = JsonDocument.Parse(responseContent);
             var result = jsonDoc.RootElement;
-            string summary_result, qa_result;
+            string summary_result;
             if (result.TryGetProperty("text_analysis", out JsonElement textAnalysis) && textAnalysis.TryGetProperty("summary", out JsonElement Summary))
             {
                 summary_result = Summary.GetString() ?? "";
@@ -140,16 +140,18 @@ public class GeminiService : IGeminiService
             if (result.TryGetProperty("question_responses", out JsonElement QA) && QA.ValueKind == JsonValueKind.Object)
             {
                 var qaJson = QA.GetRawText();
+                var metaResult =result.GetRawText().Trim();
                 //JsonElement qaResult = QA;
 
-                if (!string.IsNullOrWhiteSpace(qaJson))
+                if (!string.IsNullOrWhiteSpace(qaJson) && !string.IsNullOrWhiteSpace(metaResult))
                 {
-                    var sql = "UPDATE tbl_pdf_uploads SET qa = @qa WHERE pdf_uploaded_id = @id;";
+                    var sql = "UPDATE tbl_pdf_uploads SET qa = @qa, response=@result WHERE pdf_uploaded_id = @id;";
                     using var conn = new NpgsqlConnection(_connectionStrings);
                     {
                         conn.Open();
                         using var cmd = new NpgsqlCommand(sql, conn);
                         cmd.Parameters.AddWithValue("qa", NpgsqlTypes.NpgsqlDbType.Jsonb, JsonConvert.SerializeObject(qaJson));
+                        cmd.Parameters.AddWithValue("result", NpgsqlTypes.NpgsqlDbType.Jsonb, JsonConvert.SerializeObject(metaResult));
                         cmd.Parameters.AddWithValue("id", upload_id);
                         cmd.ExecuteNonQuery();
                     }

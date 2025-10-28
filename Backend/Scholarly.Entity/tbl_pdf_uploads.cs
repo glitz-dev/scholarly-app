@@ -60,8 +60,7 @@ namespace Scholarly.Entity
          
         public string metadata { get; set; } = "{}";
         public string qa { get; set; } = "{}";
-
-
+        public string response { get; set; } = "{}";
         public virtual ICollection<tbl_pdf_question_tags>? tbl_pdf_question_tags //why define as collection?
         {
             get;

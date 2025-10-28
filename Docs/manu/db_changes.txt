@@ -32,6 +32,11 @@ alter table tbl_pdf_summary_list  add llm_model varchar(250)
 
 ALTER TABLE public.tbl_pdf_question_tags DROP COLUMN isdeleted;
 
+UPDATE tbl_pdf_uploads
+SET response = '{}'::jsonb
+WHERE response IS NULL;
+Go
+
 -- 09 Sept 25
 
 ALTER TABLE tbl_pdf_uploads ADD COLUMN metadata JSONB;
@@ -57,3 +62,12 @@ FOREIGN KEY (project_id)
 REFERENCES tbl_projects (project_id)
 ON DELETE CASCADE
 ON UPDATE CASCADE;
+
+
+-- 27 Oct 25
+
+ALTER TABLE tbl_pdf_uploads ADD COLUMN response JSONB;
+
+-- 28 Oct 25
+
+alter table tbl_users add column refresh_token text, add column refresh_token_expiry_time timestamptz

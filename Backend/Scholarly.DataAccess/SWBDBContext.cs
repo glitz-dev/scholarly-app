@@ -79,6 +79,10 @@ namespace Scholarly.DataAccess
             modelBuilder.Entity<tbl_pdf_uploads>()
                        .Property(p => p.qa)
                        .HasColumnType("jsonb");
+
+            modelBuilder.Entity<tbl_pdf_uploads>()
+                       .Property(p => p.response)
+                       .HasColumnType("jsonb");
         }
     }
 }

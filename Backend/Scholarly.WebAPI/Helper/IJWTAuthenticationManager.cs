@@ -1,4 +1,5 @@
 ﻿using Microsoft.IdentityModel.Tokens;
+using NLog;
 using Scholarly.DataAccess;
 using Scholarly.Entity;
 using Scholarly.WebAPI.Model;
@@ -14,11 +15,14 @@ namespace Scholarly.WebAPI.Helper
         Task<Scholarly.WebAPI.Model.AuthResponse> AuthenticateAsync(tbl_users tblUserr, SWBDBContext swbDBContext);
         string GenerateRefreshToken();
         ClaimsPrincipal GetPrincipalFromExpiredToken(string token);
+        Task<TokenModel> RefreshApi(TokenModel tokenModel, SWBDBContext swbDBContext);
     }
 
     public class JWTAuthenticationManager : IJWTAuthenticationManager
     {
+
         private readonly IConfiguration _configuration;
+        private static Logger _logger = LogManager.GetCurrentClassLogger();
         public JWTAuthenticationManager(IConfiguration configuration)
         {
             _configuration = configuration;
@@ -93,6 +97,43 @@ namespace Scholarly.WebAPI.Helper
                 throw new SecurityTokenException("Invalid token");
 
             return principal;
+        }
+
+        public async Task<TokenModel> RefreshApi(TokenModel tokenModel, SWBDBContext _swbDBContext)
+        {
+            var principal = GetPrincipalFromExpiredToken(tokenModel.AccessToken);
+            if (principal == null)
+            {
+                _logger.Error("Invalid access token provided for refresh.");
+                return null;
+            }
+
+            string email = principal.Claims.FirstOrDefault(c => c.Type == "UserMail")?.Value;
+
+            var user = _swbDBContext.tbl_users.FirstOrDefault(u => u.emailid == email);
+            if (user == null)
+            {
+                _logger.Error("User not found for email: {Email}", email);
+                return null;
+            }
+
+            if (user.refresh_token != tokenModel.RefreshToken || user.refresh_token_expiry_time <= DateTime.Now)
+            {
+                _logger.Error("Invalid refresh token");
+            }
+            // Generate new tokens
+            var authResponse = await AuthenticateAsync(user, _swbDBContext);
+            var newRefreshToken = GenerateRefreshToken();
+
+            // Update DB
+            user.refresh_token = newRefreshToken;
+            await _swbDBContext.SaveChangesAsync();
+
+            return new TokenModel
+            {
+                AccessToken = authResponse.token,
+                RefreshToken = newRefreshToken
+            };
         }
     }
 

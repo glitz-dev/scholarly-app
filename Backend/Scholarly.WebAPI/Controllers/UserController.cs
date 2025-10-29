@@ -17,6 +17,7 @@ using Scholarly.WebAPI.DataAccess;
 using System.IdentityModel.Tokens.Jwt;
 using Microsoft.IdentityModel.Tokens;
 using System.Security.Claims;
+using DocumentFormat.OpenXml.Office2021.Excel.RichDataWebImage;
 
 namespace Scholarly.WebAPI.Controllers
 {
@@ -213,32 +214,9 @@ namespace Scholarly.WebAPI.Controllers
             if (tokenModel is null)
                 return BadRequest("Invalid client request");
 
-            string accessToken = tokenModel.AccessToken;
-            string refreshToken = tokenModel.RefreshToken;
+            var response =await _jWTAuthenticationManager.RefreshApi(tokenModel, _swbDBContext);
 
-            var principal = _jWTAuthenticationManager.GetPrincipalFromExpiredToken(accessToken);
-            if (principal == null)
-                return BadRequest("Invalid access token");
-
-            string email = principal.Claims.FirstOrDefault(c => c.Type == "UserMail")?.Value;
-
-            var user = await _swbDBContext.tbl_users.FirstOrDefaultAsync(u => u.emailid == email);
-            if (user == null || user.refresh_token != refreshToken || user.refresh_token_expiry_time <= DateTime.Now)
-                return BadRequest("Invalid refresh token");
-
-            // Generate new tokens
-            var newAccessToken = _jWTAuthenticationManager.AuthenticateAsync(user, _swbDBContext);
-            var newRefreshToken = _jWTAuthenticationManager.GenerateRefreshToken();
-
-            // Update DB
-            user.refresh_token = newRefreshToken;
-            await _swbDBContext.SaveChangesAsync();
-
-            return Ok(new
-            {
-                token = newAccessToken,
-                refreshToken = newRefreshToken
-            });
+            return Ok(response);
         }
     }
 }

@@ -576,7 +576,7 @@ function PdfDocument({
       let result = str;
 
       // Filter annotations specific to this page
-      const pageAnnotations = annotations.filter((ann) => ann.page === pageNum);
+      const pageAnnotations = annotations.filter((ann) => ann.page === pageNum && !ann.inline);
 
       if (searchText && searchResults.length > 0) {
         const searchTextForMatch = matchCase ? searchText : searchText.toLowerCase();
@@ -775,6 +775,39 @@ function PdfDocument({
                   isZoomingRef={isZoomingRef}
                   canvasRefs={canvasRefs}
                 />
+                {/* Inline (range) highlights – now supports many rects */}
+                {annotations
+                  .filter((a) => a.page === pageNum && a.inline)
+                  .map((ann) => {
+                    // `rect` (old single-rect) **or** `rects` (new multi-rect)
+                    const rectList = ann.rects ?? (ann.rect ? [ann.rect] : []);
+
+                    if (rectList.length === 0) return null;
+
+                    return (
+                      <React.Fragment key={ann.id}>
+                        {rectList.map((r, i) => (
+                          <div
+                            key={`${ann.id}-${i}`}
+                            className="inline-highlight-overlay"
+                            data-annotation-id={ann.id}
+                            style={{
+                              position: 'absolute',
+                              left: `${r.left}px`,
+                              top: `${r.top}px`,
+                              width: `${r.width}px`,
+                              height: `${r.height}px`,
+                              backgroundColor: ann.color || '#FFE680',
+                              opacity: 0.55,
+                              pointerEvents: 'none',
+                              zIndex: 6,
+                              borderRadius: '2px',
+                            }}
+                          />
+                        ))}
+                      </React.Fragment>
+                    );
+                  })}
               </div>
             );
           })}

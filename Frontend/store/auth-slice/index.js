@@ -33,7 +33,6 @@ export const loginUser = createAsyncThunk('/account/login', async (formData, { r
     }
 })
 
-
 const authSlice = createSlice({
     name: 'auth',
     initialState,

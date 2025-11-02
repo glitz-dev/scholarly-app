@@ -1,8 +1,10 @@
 'use client';
 import React from 'react';
-import { Loader2, FileText, Plus, Upload, BookOpen, Target, Search, BarChart3, Users, Share2, Zap, Lightbulb } from 'lucide-react';
+import { Loader2, FileText, Plus, Upload, BookOpen, Target, Search, BarChart3, Users, Share2, Zap, Lightbulb, Sparkles, Check } from 'lucide-react';
 import Pdfcard from '@/components/PDF/Pdfcard';
 import UploadPdf from '@/components/PDF/UploadPdf';
+import { Dialog, DialogContent, DialogTitle, DialogDescription, DialogTrigger } from '../ui/dialog';
+import { Button } from '../ui/button';
 
 const CollectionSection = ({
     selectedProjectId,
@@ -20,11 +22,119 @@ const CollectionSection = ({
     handleUploadCollection,
     dialogCloseRef,
     projects,
-    handleDeleteCollection
+    handleDeleteCollection,
+    aiModels,
+    selectedModel,
+    setSelectedModel
 }) => {
     return (
         <div className="w-full md:w-4/5 md:h-full bg-white dark:bg-gray-800">
-            <div className="w-full flex justify-end py-3 px-2">
+            <div className="w-full flex justify-end gap-3 py-3 px-2">
+                {/* ai selection section */}
+                {selectedProjectId && (
+                    <Dialog>
+                        <DialogTrigger asChild>
+                            <Button variant="outline" className="border-l-4 border-2 border-l-purple-500 border-t-indigo-400 border-b-blue-400 border-r-purple-500">Select Your AI Modal</Button>
+                        </DialogTrigger>
+                        <DialogContent className="sm:max-w-[825px] sm:max-h-[500px] overflow-auto scrollbar-y-auto border-l-4 border-4 border-l-purple-500 border-t-indigo-400 border-b-blue-400 border-r-purple-500">
+                            <DialogTitle>
+                                <div className="flex items-center gap-3">
+                                    <div className="p-2 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-lg">
+                                        <Sparkles className="w-5 h-5 text-white" />
+                                    </div>
+                                    <h2 className="text-2xl font-bold bg-gradient-to-r from-purple-700 via-indigo-600 to-blue-600 bg-clip-text text-transparent dark:from-purple-400 dark:via-indigo-400 dark:to-blue-400">
+                                        AI Model Selection
+                                    </h2>
+                                </div>
+                            </DialogTitle>
+                            <div className="w-full max-w-6xl mx-auto p-6">
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                    {aiModels.map((model) => (
+                                        <button
+                                            key={model.id}
+                                            onClick={() => setSelectedModel(model.id)}
+                                            className={`
+              relative p-5 rounded-xl border-2 transition-all duration-300 text-left
+              ${selectedModel === model.id
+                                                    ? `${model.borderColor} ${model.bgColor} shadow-lg scale-[1.02]`
+                                                    : 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 hover:shadow-md hover:scale-[1.01]'
+                                                }
+            `}
+                                        >
+                                            {/* Selection Indicator */}
+                                            {selectedModel === model.id && (
+                                                <div className={`absolute -top-2 -right-2 p-1.5 rounded-full bg-gradient-to-r ${model.color} shadow-lg`}>
+                                                    <Check className="w-4 h-4 text-white" />
+                                                </div>
+                                            )}
+
+                                            {/* Model Icon */}
+                                            <div className={`
+              mb-4 w-14 h-14 rounded-xl flex items-center justify-center
+              ${selectedModel === model.id
+                                                    ? `bg-gradient-to-br ${model.color} text-white`
+                                                    : `${model.bgColor} ${model.textColor} dark:text-gray-400`
+                                                }
+            `}>
+                                                {model.icon}
+                                            </div>
+
+                                            {/* Model Info */}
+                                            <div className="space-y-1">
+                                                <h3 className={`
+                text-lg font-bold
+                ${selectedModel === model.id
+                                                        ? `bg-gradient-to-r ${model.color} bg-clip-text text-transparent`
+                                                        : 'text-gray-900 dark:text-gray-100'
+                                                    }
+              `}>
+                                                    {model.name}
+                                                </h3>
+                                                <p className="text-sm text-gray-500 dark:text-gray-400">
+                                                    by {model.provider}
+                                                </p>
+                                            </div>
+
+                                            {/* Active Indicator Badge */}
+                                            {selectedModel === model.id && (
+                                                <div className="mt-4 flex items-center gap-2">
+                                                    <div className={`h-2 w-2 rounded-full bg-gradient-to-r ${model.color} animate-pulse`} />
+                                                    <span className={`text-xs font-semibold ${model.textColor} dark:text-gray-300`}>
+                                                        Active Model
+                                                    </span>
+                                                </div>
+                                            )}
+                                        </button>
+                                    ))}
+                                </div>
+
+                                {/* Info Card */}
+                                <div className="mt-6 p-4 rounded-lg bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/20 dark:to-indigo-950/20 border border-blue-200 dark:border-blue-800">
+                                    <div className="flex items-start gap-3">
+                                        <div className="p-2 bg-blue-500 rounded-lg mt-0.5">
+                                            <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                            </svg>
+                                        </div>
+                                        <div className="flex-1">
+                                            <h4 className="font-semibold text-blue-900 dark:text-blue-100 mb-1">
+                                                How it works
+                                            </h4>
+                                            <p className="text-sm text-blue-700 dark:text-blue-300">
+                                                The selected AI model will be used to generate summaries and answer questions for all your collections.
+                                                You can switch between models anytime to compare results and find the best fit for your needs.
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div className='flex justify-end gap-2 px-5'>
+                                <Button variant="outline">cancel</Button>
+                                <Button variant="destructive">Done</Button>
+                            </div>
+                        </DialogContent>
+                    </Dialog>
+                )}
                 <UploadPdf
                     setFile={setFile}
                     fileUrl={fileUrl}

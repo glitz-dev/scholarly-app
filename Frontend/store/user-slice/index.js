@@ -4,7 +4,8 @@ import { createAsyncThunk, createSlice } from "@reduxjs/toolkit";
 const initialState = {
     isLoading: false,
     userData: null,
-    error: null
+    error: null,
+    detailsCount: null
 }
 
 export const getUserDetails = createAsyncThunk('/user/getUserDetails', async (userid, { rejectWithValue }) => {
@@ -59,7 +60,7 @@ const userDataSlice = createSlice({
             state.user = null;
             state.error = action?.payload
         }).addCase(saveUserDetails.pending, (state) => {
-            state.isLoading = true
+            state.isLoading = true;
         }).addCase(saveUserDetails.fulfilled, (state, action) => {
             state.isLoading = false;
             state.userData = action?.payload;
@@ -68,8 +69,17 @@ const userDataSlice = createSlice({
             state.isLoading = false;
             state.user = null;
             state.error = action?.payload;
+        }).addCase(getDetailsCount.pending, (state) => {
+            state.isLoading = true;
+        }).addCase(getDetailsCount.fulfilled, (state, action) =>{
+            state.isLoading = false;
+            state.detailsCount = action?.payload;
+            state.error = null
+        }).addCase(getDetailsCount.rejected, (state, action) => {
+            state.isLoading = false;
+            state.error = action.payload
         })
     }
 })
 
-export default userDataSlice.reducer;
+export default userDataSlice.reducer;      

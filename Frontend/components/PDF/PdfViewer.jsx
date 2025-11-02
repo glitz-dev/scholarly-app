@@ -522,8 +522,81 @@ const PdfViewer = ({ pdfUrl: initialPdfUrl }) => {
   };
 
   const handleHighlight = () => {
-    contextMenuRef.current.style.display = 'none';
+  try {
+    if (contextMenuRef.current) contextMenuRef.current.style.display = 'none';
+  } catch (e) {}
+
+  if (!currentHighlight || !currentHighlight.text || !currentHighlight.page) {
+    setSelectedText('');
+    setCurrentHighlight(null);
+    return;
+  }
+
+  // --------------------------------------------------------------
+  //  NEW: get *all* client rects of the selection (single word,
+  //       one line, or many lines)
+  // --------------------------------------------------------------
+  const sel = window.getSelection();
+  let rects = [];
+
+  if (sel && sel.rangeCount > 0) {
+    const range = sel.getRangeAt(0);
+    rects = Array.from(range.getClientRects()); // <-- every piece
+  }
+
+  const page = currentHighlight.page;
+  const pageEl = pageRefs.current[page - 1];
+
+  if (!pageEl || rects.length === 0) {
+    // ---- fallback to old “text-only” annotation (no overlay) ----
+    setAnnotations((prev) => [
+      ...prev,
+      {
+        id: uuid(),
+        text: currentHighlight.text,
+        page,
+        note: '',
+        color: selectedColor || '#87CEEB',
+        position: currentHighlight.position || null,
+      },
+    ]);
+    setSelectedText('');
+    setCurrentHighlight(null);
+    sel?.removeAllRanges();
+    return;
+  }
+
+  // --------------------------------------------------------------
+  //  Convert every rect to coordinates that are *relative to the
+  //  page wrapper* (the same coordinate system the overlay uses)
+  // --------------------------------------------------------------
+  const pageRect = pageEl.getBoundingClientRect();
+
+  const overlayRects = rects.map((r) => ({
+    left: r.left - pageRect.left,
+    top: r.top - pageRect.top,
+    width: r.width,
+    height: r.height,
+  }));
+
+  const ann = {
+    id: uuid(),
+    text: currentHighlight.text,
+    page,
+    note: '',
+    color: selectedColor || '#87CEEB',
+    inline: true,                     // <-- tells PdfDocument to render overlay(s)
+    rects: overlayRects,              // <-- **array** of rects
+    position: currentHighlight.position || null,
   };
+
+  setAnnotations((prev) => [...prev, ann]);
+  setSelectedText('');
+  setCurrentHighlight(null);
+  sel?.removeAllRanges();
+  console.log('Added inline highlight (single word / line / multi-line):', ann);
+};
+
 
   return (
     <div className="relative w-full h-screen flex overflow-hidden">
@@ -625,8 +698,8 @@ const PdfViewer = ({ pdfUrl: initialPdfUrl }) => {
           selectedColor={selectedColor}
           selectedPenColor={selectedPenColor}
           annotations={annotations}
-          setAnnotations={setAnnotations} 
-          deleteAnnotation={deleteAnnotation} 
+          setAnnotations={setAnnotations}
+          deleteAnnotation={deleteAnnotation}
         />
         <div
           ref={contextMenuRef}
@@ -780,5 +853,5 @@ const PdfViewer = ({ pdfUrl: initialPdfUrl }) => {
     </div>
   );
 };
-     
+
 export default PdfViewer;

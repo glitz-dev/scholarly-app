@@ -51,7 +51,7 @@ export default function Home() {
 
   const getCount = async () => {
     try {
-      const result = await dispatch(getDetailsCount());
+      await dispatch(getDetailsCount());
     } catch (error) {
       showToast({
         title: "Error fetching details count",

@@ -672,10 +672,10 @@ function PdfDocument({
             firstMatchForAnnotation.current[pageNum][ann.id] = { index: absoluteIndex };
           }
           const className = 'highlight-with-note';
-          const isDark = isDarkColor(ann.color);
-          const textColor = isDark ? 'white' : 'black';
-          const textShadow = isDark ? '' : 'text-shadow: 0 0 1px rgba(0,0,0,0.5);';
-          const style = `background-color: ${ann.color}; color: ${textColor}; position: relative; ${textShadow}`;
+          // Always use black text for highlights
+          const textColor = 'black';
+          const style = `background-color: ${ann.color}; color: ${textColor}; position: relative;`;
+
 
           if (isStartOfAnnotation) {
             // Include a more robust HTML structure for the icon to avoid text layer issues
@@ -848,28 +848,24 @@ function PdfDocument({
                           />
                         ))}
                         {hasNote && (
-                          <div
-                            className="note-icon"
-                            data-annotation-id={ann.id}
+                          <MessageSquare
+                            fill={ann.color}
+                            stroke="none"
+                            size={16}
                             style={{
                               position: 'absolute',
                               left: `${firstRect.left + firstRect.width}px`,
                               top: `${firstRect.top + (firstRect.height - 16) / 2}px`,
-                              width: '16px',
-                              height: '16px',
                               zIndex: 2,
                               cursor: 'pointer',
                               ...(isDark && {
                                 backgroundColor: 'white',
                                 borderRadius: '50%',
-                                opacity: 0.9,
-                              }),
+                                opacity: 0.9
+                              })
                             }}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              e.preventDefault();
-                              toggleNoteBox(ann.id, e);
-                            }}
+                            onClick={e => { e.stopPropagation(); toggleNoteBox(ann.id, e); }}
+                            data-annotation-id={ann.id}
                           />
                         )}
                       </React.Fragment>
@@ -942,9 +938,8 @@ function PdfDocument({
           /* Enhanced active highlight with glow effect (now supports inline overlays) */
           .highlight-with-note.active-highlight, .inline-highlight-overlay.active-highlight {
             outline: 2px solid #3b82f6; 
-            outline-offset: 2px;
             box-shadow: 0 0 12px rgba(59, 130, 246, 0.4);
-            animation: pulseGlow 2s ease-in-out infinite;
+            
           }
 
           @keyframes pulseGlow {
@@ -1154,9 +1149,14 @@ function PdfDocument({
           }
 
           /* Removed text-shadow from highlights to avoid dimming; contrast handled dynamically */
-          .highlight-with-note {
-            position: relative;
-          }
+          /* Ensure highlighted text is always black */
+        .highlight-with-note {
+          position: relative;
+          color: #000; /* darker black for highlighted text */  /* updated from [1247-1249] */
+        }
+        .inline-highlight-overlay {
+          mix-blend-mode: multiply;
+        }
         `}
       </style>
     </div>

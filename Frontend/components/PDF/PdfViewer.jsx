@@ -40,7 +40,7 @@ const PdfViewer = ({ pdfUrl: initialPdfUrl }) => {
   const [showBox, setShowBox] = useState(false);
   const [scrollMode, setScrollMode] = useState('vertical');
   const [highlightAll, setHighlightAll] = useState(false);
-  const [selectedColor, setSelectedColor] = useState('#87CEEB');
+  const [selectedColor, setSelectedColor] = useState('#EE72C1'); 
   const [selectedPenColor, setSelectedPenColor] = useState('#87CEEB');
   const [annotations, setAnnotations] = useState([]);
   const [showNoteForm, setShowNoteForm] = useState(false);
@@ -111,23 +111,47 @@ const PdfViewer = ({ pdfUrl: initialPdfUrl }) => {
 
   const handleNoteSubmit = useCallback(
     (note) => {
-      if (currentHighlight) {
-        setAnnotations((prev) => [
-          ...prev,
-          {
-            id: uuid(),
-            text: currentHighlight.text,
-            page: currentHighlight.page,
-            note: note,
-            color: '#F7A5A5',
-            position: currentHighlight.position,
-          },
-        ]);
+      if (!currentHighlight || !currentHighlight.text) {
         setShowNoteForm(false);
         setCurrentHighlight(null);
+        return;
       }
+
+      let ann;
+      if (currentHighlight.rects && currentHighlight.rects.length > 0) {
+        // Use inline overlay for precise highlighting (fixes partial selection issue)
+        ann = {
+          id: uuid(),
+          text: currentHighlight.text,
+          page: currentHighlight.page,
+          note: note,
+          color: selectedColor || '#ADD8E6', // Light blue for better readability
+          inline: true,
+          rects: currentHighlight.rects,
+        };
+      } else {
+        // Fallback to legacy text-based (may have issues with partial selections)
+        ann = {
+          id: uuid(),
+          text: currentHighlight.text,
+          page: currentHighlight.page,
+          note: note,
+          color: selectedColor || '#ADD8E6', // Light blue for better readability
+          position: currentHighlight.position || null,
+        };
+      }
+
+      setAnnotations((prev) => [...prev, ann]);
+      setShowNoteForm(false);
+      setCurrentHighlight(null);
+
+      // Clear selection
+      const sel = window.getSelection();
+      sel?.removeAllRanges();
+
+      console.log('Added annotation with note:', ann);
     },
-    [currentHighlight]
+    [currentHighlight, selectedColor]
   );
 
   useEffect(() => {
@@ -224,25 +248,52 @@ const PdfViewer = ({ pdfUrl: initialPdfUrl }) => {
   const handleTextSelectionMouseUp = useCallback(() => {
     if (tool === 'text') {
       const selection = window.getSelection();
-      const selectedText = selection.toString().trim();
+      const selectedTextTrimmed = selection.toString().trim();
 
-      if (selectedText.length > 0 && selection.rangeCount > 0) {
+      if (selectedTextTrimmed.length > 0 && selection.rangeCount > 0) {
         const range = selection.getRangeAt(0);
-        const rect = range.getBoundingClientRect();
+        const boundingRect = range.getBoundingClientRect();
 
-        setSelectedText(selectedText);
+        // Find the page element containing the selection
+        let pageElement = range.commonAncestorContainer;
+        while (pageElement) {
+          if (pageElement.nodeType === 1 && pageElement.hasAttribute('data-page-number')) {
+            break;
+          }
+          pageElement = pageElement.parentNode;
+        }
+
+        let rects = [];
+        let page = pageNumber; // Fallback to current page
+
+        if (pageElement && pageElement.nodeType === 1) {
+          page = parseInt(pageElement.getAttribute('data-page-number'));
+          const pageRect = pageElement.getBoundingClientRect();
+          rects = Array.from(range.getClientRects()).map((r) => ({
+            left: r.left - pageRect.left,
+            top: r.top - pageRect.top,
+            width: r.width,
+            height: r.height,
+          }));
+        } else {
+          console.warn('Could not find page element for selection; using fallback');
+          rects = [];
+        }
+
+        setSelectedText(selectedTextTrimmed);
         setCurrentHighlight({
-          text: selectedText,
-          page: pageNumber,
-          position: { x: rect.left, y: rect.top, width: rect.width, height: rect.height },
+          text: selectedTextTrimmed,
+          page,
+          position: { x: boundingRect.left, y: boundingRect.top, width: boundingRect.width, height: boundingRect.height },
+          rects,
         });
 
         const menu = contextMenuRef.current;
         if (menu) {
           menu.style.display = 'block';
           menu.style.position = 'absolute';
-          menu.style.top = `${rect.top + window.scrollY - 40}px`;
-          menu.style.left = `${rect.left + window.scrollX}px`;
+          menu.style.top = `${boundingRect.top + window.scrollY - 40}px`;
+          menu.style.left = `${boundingRect.left + window.scrollX}px`;
         }
 
         setShowBox(false);
@@ -505,6 +556,66 @@ const PdfViewer = ({ pdfUrl: initialPdfUrl }) => {
     setSelectedText('');
   }, [selectedText, question]);
 
+  const handleHighlight = useCallback(() => {
+    if (!currentHighlight || !currentHighlight.text) {
+      setSelectedText('');
+      setCurrentHighlight(null);
+      return;
+    }
+
+    if (contextMenuRef.current) {
+      contextMenuRef.current.style.display = 'none';
+    }
+
+    let ann;
+    if (currentHighlight.rects && currentHighlight.rects.length > 0) {
+      // Use inline overlay for precise highlighting
+      ann = {
+        id: uuid(),
+        text: currentHighlight.text,
+        page: currentHighlight.page,
+        note: '',
+        color: selectedColor || '#ADD8E6',
+        inline: true,
+        rects: currentHighlight.rects,
+      };
+    } else {
+      // Fallback to legacy text-based
+      ann = {
+        id: uuid(),
+        text: currentHighlight.text,
+        page: currentHighlight.page,
+        note: '',
+        color: selectedColor || '#ADD8E6',
+        position: currentHighlight.position || null,
+      };
+    }
+
+    setAnnotations((prev) => [...prev, ann]);
+    setSelectedText('');
+    setCurrentHighlight(null);
+
+    // Clear selection
+    const sel = window.getSelection();
+    sel?.removeAllRanges();
+
+    console.log('Added inline highlight (single word / line / multi-line):', ann);
+  }, [currentHighlight, selectedColor, setAnnotations]);
+
+  const handleCopyText = useCallback(() => {
+    navigator.clipboard.writeText(selectedText);
+    setSelectedText('');
+    setCurrentHighlight(null);
+
+    // Clear selection
+    const sel = window.getSelection();
+    sel?.removeAllRanges();
+
+    if (contextMenuRef.current) {
+      contextMenuRef.current.style.display = 'none';
+    }
+  }, [selectedText]);
+
   if (!isClient || !pdfUrl) {
     return (
       <div className="flex items-center justify-center h-screen">
@@ -515,88 +626,6 @@ const PdfViewer = ({ pdfUrl: initialPdfUrl }) => {
       </div>
     );
   }
-
-  const handleCopyText = () => {
-    navigator.clipboard.writeText(selectedText);
-    contextMenuRef.current.style.display = 'none';
-  };
-
-  const handleHighlight = () => {
-  try {
-    if (contextMenuRef.current) contextMenuRef.current.style.display = 'none';
-  } catch (e) {}
-
-  if (!currentHighlight || !currentHighlight.text || !currentHighlight.page) {
-    setSelectedText('');
-    setCurrentHighlight(null);
-    return;
-  }
-
-  // --------------------------------------------------------------
-  //  NEW: get *all* client rects of the selection (single word,
-  //       one line, or many lines)
-  // --------------------------------------------------------------
-  const sel = window.getSelection();
-  let rects = [];
-
-  if (sel && sel.rangeCount > 0) {
-    const range = sel.getRangeAt(0);
-    rects = Array.from(range.getClientRects()); // <-- every piece
-  }
-
-  const page = currentHighlight.page;
-  const pageEl = pageRefs.current[page - 1];
-
-  if (!pageEl || rects.length === 0) {
-    // ---- fallback to old “text-only” annotation (no overlay) ----
-    setAnnotations((prev) => [
-      ...prev,
-      {
-        id: uuid(),
-        text: currentHighlight.text,
-        page,
-        note: '',
-        color: selectedColor || '#87CEEB',
-        position: currentHighlight.position || null,
-      },
-    ]);
-    setSelectedText('');
-    setCurrentHighlight(null);
-    sel?.removeAllRanges();
-    return;
-  }
-
-  // --------------------------------------------------------------
-  //  Convert every rect to coordinates that are *relative to the
-  //  page wrapper* (the same coordinate system the overlay uses)
-  // --------------------------------------------------------------
-  const pageRect = pageEl.getBoundingClientRect();
-
-  const overlayRects = rects.map((r) => ({
-    left: r.left - pageRect.left,
-    top: r.top - pageRect.top,
-    width: r.width,
-    height: r.height,
-  }));
-
-  const ann = {
-    id: uuid(),
-    text: currentHighlight.text,
-    page,
-    note: '',
-    color: selectedColor || '#87CEEB',
-    inline: true,                     // <-- tells PdfDocument to render overlay(s)
-    rects: overlayRects,              // <-- **array** of rects
-    position: currentHighlight.position || null,
-  };
-
-  setAnnotations((prev) => [...prev, ann]);
-  setSelectedText('');
-  setCurrentHighlight(null);
-  sel?.removeAllRanges();
-  console.log('Added inline highlight (single word / line / multi-line):', ann);
-};
-
 
   return (
     <div className="relative w-full h-screen flex overflow-hidden">

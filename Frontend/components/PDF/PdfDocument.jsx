@@ -3,6 +3,7 @@ import { useEffect, useState, useRef, memo, useCallback } from 'react';
 import { Document, Page, pdfjs } from 'react-pdf';
 import { Card, CardContent } from '../ui/card';
 import { MessageSquare, Trash2, X } from 'lucide-react';
+import React from 'react'; // Explicit import for Fragment
 
 // Debounce utility function
 const debounce = (func, wait) => {
@@ -12,6 +13,16 @@ const debounce = (func, wait) => {
     timeout = setTimeout(() => func.apply(this, args), wait);
   };
 };
+
+// Helper to determine if a color is dark (low luminance)
+const getLuminance = (hexColor) => {
+  // Assume hexColor is #rrggbb
+  const rgb = hexColor.replace('#', '').match(/.{2}/g).map(x => parseInt(x, 16));
+  const [r, g, b] = rgb.map(c => c / 255);
+  return 0.299 * r + 0.587 * g + 0.114 * b;
+};
+
+const isDarkColor = (hexColor) => getLuminance(hexColor) < 0.5;
 
 // Memoized PdfPage component
 const PdfPage = memo(
@@ -190,16 +201,20 @@ function PdfDocument({
       const canvases = container.querySelectorAll('.react-pdf__Page__canvas');
       const textLayers = container.querySelectorAll('.react-pdf__Page__textLayer');
       canvases.forEach((canvas) => (canvas.style.pointerEvents = 'none'));
-      textLayers.forEach((textLayer) =>
-        (textLayer.style.pointerEvents = tool === 'highlight' || tool === 'text' ? 'auto' : 'none')
-      );
+      textLayers.forEach((textLayer) => {
+        textLayer.style.pointerEvents = tool === 'highlight' || tool === 'text' ? 'auto' : 'none';
+        textLayer.style.zIndex = '1';
+      });
     };
 
     const restorePointerEvents = () => {
       const canvases = container.querySelectorAll('.react-pdf__Page__canvas');
       const textLayers = container.querySelectorAll('.react-pdf__Page__textLayer');
       canvases.forEach((canvas) => (canvas.style.pointerEvents = 'auto'));
-      textLayers.forEach((textLayer) => (textLayer.style.pointerEvents = 'auto'));
+      textLayers.forEach((textLayer) => {
+        textLayer.style.pointerEvents = 'auto';
+        textLayer.style.zIndex = '1';
+      });
     };
 
     const getCanvasForEvent = (e) => {
@@ -543,18 +558,18 @@ function PdfDocument({
     const container = pdfContainerRef.current;
     if (!container) return;
 
-    // Remove active state from all previously active highlights
+    // Remove active state from all previously active highlights (support both old text-based and new inline)
     container
       .querySelectorAll(
-        '.react-pdf__Page__textContent.textLayer .highlight-with-note.active-highlight'
+        '.highlight-with-note.active-highlight, .inline-highlight-overlay.active-highlight'
       )
       .forEach((el) => el.classList.remove('active-highlight'));
 
-    // Add active state to the currently selected annotation highlights
+    // Add active state to the currently selected annotation highlights (support both)
     if (noteState.activeNoteId) {
       container
         .querySelectorAll(
-          `.react-pdf__Page__textContent.textLayer [data-annotation-id="${noteState.activeNoteId}"]`
+          `[data-annotation-id="${noteState.activeNoteId}"]`
         )
         .forEach((el) => el.classList.add('active-highlight'));
     }
@@ -570,7 +585,7 @@ function PdfDocument({
     console.log(`Changed color for annotation ${annotationId} to ${newColor}`);
   };
 
-  // --- START MEMOIZED customTextRenderer ---
+  // --- START MEMOIZED customTextRenderer --- (kept for legacy text-based ann support)
   const memoizedCustomTextRenderer = useCallback(
     ({ str, itemIndex, pageNum }) => {
       let result = str;
@@ -657,7 +672,10 @@ function PdfDocument({
             firstMatchForAnnotation.current[pageNum][ann.id] = { index: absoluteIndex };
           }
           const className = 'highlight-with-note';
-          const style = `background-color: ${ann.color}; color: black; position: relative;`;
+          const isDark = isDarkColor(ann.color);
+          const textColor = isDark ? 'white' : 'black';
+          const textShadow = isDark ? '' : 'text-shadow: 0 0 1px rgba(0,0,0,0.5);';
+          const style = `background-color: ${ann.color}; color: ${textColor}; position: relative; ${textShadow}`;
 
           if (isStartOfAnnotation) {
             // Include a more robust HTML structure for the icon to avoid text layer issues
@@ -775,7 +793,7 @@ function PdfDocument({
                   isZoomingRef={isZoomingRef}
                   canvasRefs={canvasRefs}
                 />
-                {/* Inline (range) highlights – now supports many rects */}
+                {/* Inline (range) highlights – now supports many rects and note icons */}
                 {annotations
                   .filter((a) => a.page === pageNum && a.inline)
                   .map((ann) => {
@@ -784,8 +802,32 @@ function PdfDocument({
 
                     if (rectList.length === 0) return null;
 
+                    const firstRect = rectList[0];
+                    const hasNote = ann.note && typeof ann.note === 'string' && ann.note.trim().length > 0;
+                    const isDark = isDarkColor(ann.color);
+                    const highlightOpacity = isDark ? 0.6 : 0.3;
+
                     return (
                       <React.Fragment key={ann.id}>
+                        {/* White underlay for dark colors to brighten text */}
+                        {isDark &&
+                          rectList.map((r, i) => (
+                            <div
+                              key={`white-${ann.id}-${i}`}
+                              style={{
+                                position: 'absolute',
+                                left: `${r.left}px`,
+                                top: `${r.top}px`,
+                                width: `${r.width}px`,
+                                height: `${r.height}px`,
+                                backgroundColor: 'white',
+                                opacity: 0.4,
+                                pointerEvents: 'none',
+                                zIndex: 0,
+                                borderRadius: '2px',
+                              }}
+                            />
+                          ))}
                         {rectList.map((r, i) => (
                           <div
                             key={`${ann.id}-${i}`}
@@ -797,14 +839,39 @@ function PdfDocument({
                               top: `${r.top}px`,
                               width: `${r.width}px`,
                               height: `${r.height}px`,
-                              backgroundColor: ann.color || '#FFE680',
-                              opacity: 0.55,
+                              backgroundColor: ann.color || '#ADD8E6',
+                              opacity: highlightOpacity,
                               pointerEvents: 'none',
-                              zIndex: 6,
+                              zIndex: 0,
                               borderRadius: '2px',
                             }}
                           />
                         ))}
+                        {hasNote && (
+                          <div
+                            className="note-icon"
+                            data-annotation-id={ann.id}
+                            style={{
+                              position: 'absolute',
+                              left: `${firstRect.left + firstRect.width}px`,
+                              top: `${firstRect.top + (firstRect.height - 16) / 2}px`,
+                              width: '16px',
+                              height: '16px',
+                              zIndex: 2,
+                              cursor: 'pointer',
+                              ...(isDark && {
+                                backgroundColor: 'white',
+                                borderRadius: '50%',
+                                opacity: 0.9,
+                              }),
+                            }}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              e.preventDefault();
+                              toggleNoteBox(ann.id, e);
+                            }}
+                          />
+                        )}
                       </React.Fragment>
                     );
                   })}
@@ -872,8 +939,8 @@ function PdfDocument({
       </div>
       <style>
         {`
-          /* Enhanced active highlight with glow effect */
-          .highlight-with-note.active-highlight {
+          /* Enhanced active highlight with glow effect (now supports inline overlays) */
+          .highlight-with-note.active-highlight, .inline-highlight-overlay.active-highlight {
             outline: 2px solid #3b82f6; 
             outline-offset: 2px;
             box-shadow: 0 0 12px rgba(59, 130, 246, 0.4);
@@ -904,7 +971,7 @@ function PdfDocument({
             content: '';
             position: absolute;
             inset: 0;
-            background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="blue" stroke="%23667eea" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>') no-repeat center;
+            background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="purple"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>') no-repeat center;
             background-size: contain;
             filter: drop-shadow(0 2px 4px rgba(102, 126, 234, 0.3));
           }
@@ -1084,6 +1151,11 @@ function PdfDocument({
             border: none;
             border-radius: 4px;
             box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.1);
+          }
+
+          /* Removed text-shadow from highlights to avoid dimming; contrast handled dynamically */
+          .highlight-with-note {
+            position: relative;
           }
         `}
       </style>

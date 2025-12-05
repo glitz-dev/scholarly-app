@@ -3,14 +3,13 @@ import GroupCard from '@/components/PDF/GroupCard'
 import CreateGroup from '@/components/PDF/GroupCreateForm'
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion'
 import useUserId from '@/hooks/useUserId'
-import { getGroupsByUserId } from '@/store/group-slice'
+import { getGroups } from '@/store/group-slice'
 import { Loader, Users, Plus } from 'lucide-react'
 import React, { useEffect, useState, useRef } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
 
 const GroupList = () => {
   const dispatch = useDispatch();
-  const userId = useUserId();
   const [isMounting, setIsMounting] = useState(false);
   const { groupList, isLoading } = useSelector((state) => state.group);
   const { user } = useSelector((state) => state.auth);
@@ -18,11 +17,11 @@ const GroupList = () => {
   const hasFetchedGroups = useRef(false);
 
   useEffect(() => {
-    if (user?.token && userId && !hasFetchedGroups.current) {
+    if (user?.Token && !hasFetchedGroups.current) {
       hasFetchedGroups.current = true;
-      dispatch(getGroupsByUserId({ userId, authToken: user?.token }));
+      dispatch(getGroups({ authToken: user?.Token }));
     }
-  }, [dispatch, userId, user?.token]);
+  }, [dispatch, user?.Token]);
 
   useEffect(() => {
     setListOfGroups(groupList);

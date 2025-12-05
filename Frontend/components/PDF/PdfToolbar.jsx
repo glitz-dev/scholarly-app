@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectVa
 import { DropdownMenu, DropdownMenuContent, DropdownMenuGroup, DropdownMenuItem, DropdownMenuTrigger } from '../ui/dropdown-menu';
 import React, { useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { getGroupsByUserId } from '@/store/group-slice';
+import { getGroups } from '@/store/group-slice';
 import useUserId from '@/hooks/useUserId';
 import { Document, Page, pdfjs } from 'react-pdf';
 import { Checkbox } from '../ui/checkbox';
@@ -288,7 +288,7 @@ const PdfToolbar = ({
   const handleDialogOpen = () => {
     setDialogOpen(true);
     if (user?.token && userId) {
-      dispatch(getGroupsByUserId({ userId, authToken: user?.token }))
+      dispatch(getGroups({ userId, authToken: user?.token }))
         .catch((err) => {
           console.error('Failed to fetch groups:', err);
           showToast({

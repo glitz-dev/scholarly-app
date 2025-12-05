@@ -41,7 +41,7 @@ const PdfPage = memo(
     }, [pageNum, canvasRefs]);
 
     return (
-      <div className={`transition-opacity duration-300 ${isRendered ? 'opacity-100' : 'opacity-0'} relative`}>
+      <div className={`transition-opacity duration-300 ${isRendered ? 'opacity-200' : 'opacity-0'} relative`}>
         <Page
           pageNumber={pageNum}
           canvasBackground="#ffffff"
@@ -704,9 +704,7 @@ function PdfDocument({
       firstMatchForAnnotation,
     ]
   );
-  // --- END MEMOIZED customTextRenderer ---
 
-  console.log('PdfDocument props:', { tool, selectedPenColor });
 
   return (
     <div
@@ -949,31 +947,6 @@ function PdfDocument({
             50% {
               box-shadow: 0 0 20px rgba(59, 130, 246, 0.6);
             }
-          }
-
-          /* Note icon using MessageSquare lucide icon style */
-          .note-icon {
-            display: inline-block;
-            width: 16px;
-            height: 16px;
-            margin-right: 4px;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            position: relative;
-          }
-
-          .note-icon::before {
-            content: '';
-            position: absolute;
-            inset: 0;
-            background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="purple"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>') no-repeat center;
-            background-size: contain;
-            filter: drop-shadow(0 2px 4px rgba(102, 126, 234, 0.3));
-          }
-
-          .note-icon:hover::before {
-            transform: scale(1.15);
-            filter: drop-shadow(0 4px 8px rgba(102, 126, 234, 0.5));
           }
 
           .note-overlay {

@@ -1,77 +1,56 @@
-import axios from 'axios';
+import api from '@/app/api/instance';
 import { createAsyncThunk, createSlice } from '@reduxjs/toolkit';
 
 const initialState = {
     isLoading: false,
     groupList: [],
     error: null
-}
+};
 
-export const addGroup = createAsyncThunk("/pdf/addgroup", async ({ userId, groupName, tagsText, authToken }, { rejectWithValue }) => {
+export const addGroup = createAsyncThunk("/pdf/addgroup", async ({ userId, groupName, tagsText }, { rejectWithValue }) => { // REMOVED: authToken arg
     try {
-        const response = await axios.post(`/api/PDF/addgroup?UserId=${userId}&GroupName=${groupName}&TagsText=${tagsText}`, {}, {
-            headers: { Authorization: `Bearer ${authToken}` },
-        });
+        const response = await api.post(`/api/Group/add?GroupName=${groupName}&TagsText=${tagsText}`); // CHANGED: api.post, no manual headers
         return response.data;
     } catch (error) {
         return rejectWithValue(error.response?.data || "An error occurred");
     }
 });
 
-export const getGroupsByUserId = createAsyncThunk("/pdf/getgroups", async ({ userId, authToken }, { rejectWithValue }) => {
+export const getGroups = createAsyncThunk("/pdf/getgroups", async ({ }, { rejectWithValue }) => { // REMOVED: authToken arg
     try {
-        const response = await axios.get(`/api/PDF/loadgroups?UserId=${userId}`, {
-            headers: {
-                Authorization: `Bearer ${authToken}`
-            }
-        });
+        const response = await api.get(`/api/Group/list`); // CHANGED: api.get, no manual headers
         return response?.data;
     } catch (error) {
         return rejectWithValue(error.response?.data || "Failed to fetch groups");
     }
 });
 
-
-export const deleteGroup = createAsyncThunk('/pdf/deletegroup', async ({ userId, groupId, authToken }, { rejectWithValue }) => {
+export const deleteGroup = createAsyncThunk('/pdf/deletegroup', async ({ groupId }, { rejectWithValue }) => { // REMOVED: authToken arg
     try {
-        const response = await axios.post(`/api/PDF/deletegroup?UserId=${userId}&GroupId=${groupId}`, {}, {
-            headers: {
-                Authorization: `Bearer ${authToken}`
-            }
-        });
+        const response = await api.delete(`/api/Group/${groupId}`); // CHANGED: api.delete, no manual headers
         return response?.data;
     } catch (error) {
-        return rejectWithValue(error.response?.data?.message || 'Can not delete group')
+        return rejectWithValue(error.response?.data?.message || 'Can not delete group');
     }
-})
+});
 
-export const addNewEmail = createAsyncThunk('/pdf/addnewEmail', async ({ userId, email, groupId, authToken }, {
-    rejectWithValue
-}) => {
+export const addNewEmail = createAsyncThunk('/pdf/addnewEmail', async ({ email, groupId }, { rejectWithValue }) => { // REMOVED: authToken arg
     try {
-        const response = await axios.post(`/api/PDF/addnewmail?UserId=${userId}&newEmail=${email}&GroupId=${groupId}`, {}, {
-            headers: {
-                Authorization: `Bearer ${authToken}`
-            }
-        })
+        const response = await api.post(`/api/Group/email/add?newEmail=${email}&GroupId=${groupId}`); // CHANGED: api.post, no manual headers
         return response?.data;
     } catch (error) {
-        return rejectWithValue(error.response?.data?.message || 'Can not add new Email')
+        return rejectWithValue(error.response?.data?.message || 'Can not add new Email'); // FIXED: Typo "Emalil" → "Email"
     }
-})
+});
 
-export const deleteEmail = createAsyncThunk('/pdf/deleteemail', async ({ userId, groupEmailId, authToken }, { rejectWithValue }) => {
+export const deleteEmail = createAsyncThunk('/pdf/deleteemail', async ({ groupEmailId }, { rejectWithValue }) => { // REMOVED: authToken arg
     try {
-        const response = await axios.post(`/api/PDF/deleteemail?UserId=${userId}&GroupEmailId=${groupEmailId}`, {}, {
-            headers: {
-                Authorization: `Bearer ${authToken}`
-            }
-        })
+        const response = await api.delete(`/api/Group/email/${groupEmailId}`); // CHANGED: api.delete, no manual headers
         return response?.data;
     } catch (error) {
-        return rejectWithValue(error.response?.data?.message || 'Can not delete Emalil')
+        return rejectWithValue(error.response?.data?.message || 'Can not delete Email'); // FIXED: Typo "Emalil" → "Email"
     }
-})
+});
 
 const groupDataSlice = createSlice({
     name: 'group',
@@ -86,15 +65,15 @@ const groupDataSlice = createSlice({
         }).addCase(addGroup.rejected, (state, action) => {
             state.isLoading = false;
             state.error = action?.payload;
-        }).addCase(getGroupsByUserId.pending, (state) => {
+        }).addCase(getGroups.pending, (state) => {
             state.isLoading = true;
         })
-            .addCase(getGroupsByUserId.fulfilled, (state, action) => {
+            .addCase(getGroups.fulfilled, (state, action) => {
                 state.isLoading = false;
                 state.groupList = action.payload;
                 state.error = null;
             })
-            .addCase(getGroupsByUserId.rejected, (state, action) => {
+            .addCase(getGroups.rejected, (state, action) => {
                 state.isLoading = false;
                 state.groupList = [];
                 state.error = action.payload;
@@ -124,7 +103,6 @@ const groupDataSlice = createSlice({
                 state.error = action.payload;
             })
     }
-})
+});
 
 export default groupDataSlice.reducer;
-

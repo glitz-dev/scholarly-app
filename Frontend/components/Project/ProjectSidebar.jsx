@@ -60,20 +60,20 @@ const ProjectSidebar = ({
                     ) : projects && projects?.length > 0 ? (
                         projects?.map((project, index) => (
                             <div
-                                key={project?.ProjectId || project?.project_id}
+                                key={project?.ProjectId}
                                 className={`w-full flex flex-row items-center justify-between py-3 px-3 rounded-lg 
                      transition-all duration-500 ease-in-out transform
-                     ${selectedProjectId === project?.project_id
+                     ${selectedProjectId === project?.ProjectId
                                         ? 'bg-indigo-50 dark:bg-indigo-900/40 shadow-md border-l-4 border-l-purple-500 dark:border-gray-100 scale-[1.02]'
                                         : 'dark:hover:bg-gray-800 border-l-4 border-l-transparent'
                                     }`}
                             >
                                 <div
                                     className="flex flex-row items-center gap-2 cursor-pointer transition-transform duration-500 ease-in-out"
-                                    onClick={() => getCollectionsOnProjects(project?.project_id)}
+                                    onClick={() => getCollectionsOnProjects(project?.ProjectId)}
                                 >
                                     <GradientIcon
-                                        Icon={selectedProjectId === project?.project_id ? FolderOpen : Folder}
+                                        Icon={selectedProjectId === project?.ProjectId ? FolderOpen : Folder}
                                         className="h-5 w-5 cursor-pointer transition-transform duration-500 ease-in-out hover:scale-110"
                                     />
                                     <span

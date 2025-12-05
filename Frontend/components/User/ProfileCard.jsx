@@ -1,15 +1,30 @@
 'use client'
-import React, { useMemo } from "react";
+import React, { useEffect, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
 import { Label } from "../ui/label";
 import EditProfileModal from "./EditProfileModal";
 import { User, GraduationCap, MapPin, Mail, Building, Briefcase, Code, Edit3 } from "lucide-react";
+import { getUserDetails } from "@/store/user-slice";
+import { useDispatch, useSelector } from "react-redux";
 
-const ProfileCard = ({userProfileData}) => {
-  // EditProfileModal only updates when userProfileData changes
+const ProfileCard = () => {
+   const dispatch = useDispatch();
+  const { userData } = useSelector((state) => state.userprofile);
+  useEffect(() => {
+    if (!userData) { // FIXED: Only fetch if no data and not loading
+      dispatch(getUserDetails());
+    }
+  }, [dispatch, userData]);
+
+  // Log only on data change (reduces noise)
+  useEffect(() => {
+    console.log('.......userData in ProfileCard:', userData);
+  }, [userData]);
+  // EditProfileModal only updates when userData changes
   const memoizedEditProfileModal = useMemo(() => {
-    return <EditProfileModal editProfileData={userProfileData} />
-  }, [userProfileData]);
+    return <EditProfileModal editProfileData={userData} />
+  }, [userData]);
+  
 
   return (
     <div className="w-full sm:max-w-4xl mx-auto px-0 md:px-8">
@@ -26,14 +41,14 @@ const ProfileCard = ({userProfileData}) => {
               </div>
               <div className="space-y-1">
                 <h1 className="text-2xl md:text-3xl font-bold text-slate-900 dark:text-slate-100 tracking-tight">
-                  {userProfileData?.FirstName} {userProfileData?.LastName}
+                  {userData?.FirstName} {userData?.LastName}
                 </h1>
                 <p className="text-sm md:text-lg text-slate-600 dark:text-slate-400 font-medium">
-                  {userProfileData?.CurrentPosition || "Professional"}
+                  {userData?.CurrentPosition || "Professional"}
                 </p>
                 <div className="flex items-center text-sm text-slate-500 dark:text-slate-500 mt-2">
                   <MapPin className="h-4 w-4 mr-1" />
-                  {userProfileData?.CurrentLocation || "Location not specified"}
+                  {userData?.CurrentLocation || "Location not specified"}
                 </div>
               </div>
             </div>
@@ -63,23 +78,23 @@ const ProfileCard = ({userProfileData}) => {
                 <ProfessionalField 
                   icon={<User className="h-4 w-4 text-slate-600 dark:text-white" />}
                   label="First Name" 
-                  value={userProfileData?.FirstName} 
+                  value={userData?.FirstName} 
                 />
                 <ProfessionalField 
                   icon={<User className="h-4 w-4 text-slate-600 dark:text-white" />}
                   label="Last Name" 
-                  value={userProfileData?.LastName} 
+                  value={userData?.LastName} 
                 />
                 <ProfessionalField 
                   icon={<Mail className="h-4 w-4 text-slate-600 dark:text-white" />}
                   label="Email Address" 
-                  value={userProfileData?.EmailID} 
+                  value={userData?.EmailID} 
                   isEmail={true}
                 />
                 <ProfessionalField 
                   icon={<MapPin className="h-4 w-4 text-slate-600 dark:text-white" />}
                   label="Current Location" 
-                  value={userProfileData?.CurrentLocation} 
+                  value={userData?.CurrentLocation} 
                 />
               </div>
             </div>
@@ -99,12 +114,12 @@ const ProfileCard = ({userProfileData}) => {
                 <ProfessionalField 
                   icon={<Building className="h-4 w-4 text-slate-600 dark:text-white" />}
                   label="University" 
-                  value={userProfileData?.University} 
+                  value={userData?.University} 
                 />
                 <ProfessionalField 
                   icon={<Briefcase className="h-4 w-4 text-slate-600 dark:text-white" />}
                   label="Current Position" 
-                  value={userProfileData?.CurrentPosition} 
+                  value={userData?.CurrentPosition} 
                 />
                 <ProfessionalField 
                   icon={<Code className="h-4 w-4 text-slate-600 dark:text-white" />}

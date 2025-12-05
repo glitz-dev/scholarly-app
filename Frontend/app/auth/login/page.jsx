@@ -24,7 +24,6 @@ const LoginPage = () => {
   const [rememberMe, setRememberMe] = useState(false);
   const { showToast } = useCustomToast();
   const router = useRouter();
-
   const handleChange = async (e) => {
     const { name, value } = e.target;
 
@@ -39,8 +38,7 @@ const LoginPage = () => {
     setSubmitting(true)
     try {
       const result = await dispatch(loginUser(formData)).unwrap();
-
-      if (result?.status) {
+      if (result?.Status) {
         if (rememberMe) {
           localStorage.setItem('EmailID', formData?.EmailID);
           // Encrypting password

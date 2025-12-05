@@ -45,7 +45,7 @@ const Navbar = () => {
     debounce((query) => {
       if (query.length >= 3) {
         setIsSearching(true);
-        dispatch(searchPdf({ keyword: query, authToken: user?.token }))
+        dispatch(searchPdf({ keyword: query }))
           .then((result) => {
             setSearchResults(result?.payload || []);
             setShowSearchResults(true);
@@ -58,7 +58,7 @@ const Navbar = () => {
         setShowSearchResults(false);
       }
     }, 300),
-    [user?.token]
+    [user?.Token]
   );
 
 
@@ -123,8 +123,9 @@ const Navbar = () => {
   };
 
   useEffect(() => {
-    dispatch(getUserDetails(userId));
+    dispatch(getUserDetails());
   }, [dispatch])
+
 
   const SearchResults = ({ results, isVisible, onResultClick, isSearching, isMobile = false }) => {
     if (!isVisible) return null;

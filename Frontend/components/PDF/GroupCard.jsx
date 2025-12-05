@@ -8,7 +8,7 @@ import { Loader2, Trash } from 'lucide-react';
 
 import { useDispatch, useSelector } from 'react-redux';
 import useUserId from '@/hooks/useUserId';
-import { addNewEmail, deleteEmail, deleteGroup, getGroupsByUserId } from '@/store/group-slice';
+import { addNewEmail, deleteEmail, deleteGroup, getGroups } from '@/store/group-slice';
 import { useCustomToast } from '@/hooks/useCustomToast';
 import { Input } from '../ui/input';
 import { Button } from '../ui/button';
@@ -58,10 +58,10 @@ const GroupCard = React.memo(({ groupName, emails, count, groupId, setIsMounting
         setIsMounting(false)
 
         try {
-            const result = await dispatch(addNewEmail({ userId, email: newEmail, groupId, authToken: user?.token })).unwrap();
+            const result = await dispatch(addNewEmail({ email: newEmail, groupId, authToken: user?.Token })).unwrap();
 
             if (result === true) {
-                await dispatch(getGroupsByUserId({ userId, authToken: user?.token }));
+                await dispatch(getGroups({ authToken: user?.Token }));
                 showToast({
                     title: "Email Added",
                     description: "The email was successfully added to the group.",
@@ -83,16 +83,16 @@ const GroupCard = React.memo(({ groupName, emails, count, groupId, setIsMounting
 
         setNewEmail('');
         setIsAddingEmail(false)
-    }, [dispatch, userId, newEmail, groupId, user?.token, showToast, setIsMounting, existingEmails])
+    }, [dispatch, newEmail, groupId, user?.Token, showToast, setIsMounting, existingEmails])
 
     // DELETE GROUP FUNCTION
     const handleDeleteGroup = useCallback(async () => {
         try {
             setIsMounting(false);
-            const result = await dispatch(deleteGroup({ userId, groupId, authToken: user?.token })).unwrap();
+            const result = await dispatch(deleteGroup({ groupId, authToken: user?.Token })).unwrap();
             if (result === true) {
                 setListOfGroups((prev) => prev.filter(group => group.GroupId !== groupId));
-                await dispatch(getGroupsByUserId({ userId, authToken: user?.token }));
+                await dispatch(getGroups({  authToken: user?.Token }));
                 showToast({ title: "Group Deleted", description: "Successfully deleted.", variant: "success" });
             } else {
                 throw new Error("Could not delete group.");
@@ -104,18 +104,17 @@ const GroupCard = React.memo(({ groupName, emails, count, groupId, setIsMounting
                 variant: "error",
             });
         }
-    }, [dispatch, userId, groupId, user?.token, showToast, setIsMounting, setListOfGroups]);
+    }, [dispatch, groupId, user?.Token, showToast, setIsMounting, setListOfGroups]);
 
     // DELETE GROUP EMAIL FUNCTION
     const handleDeleteEmail = useCallback((email) => {
         setIsMounting(false);
 
         dispatch(deleteEmail({
-            userId: userId,
             groupEmailId: email?.GroupEmailId,
-            authToken: user?.token,
+            authToken: user?.Token,
         })).then((result) => {
-            if (result?.payload === false) { // here it is false beacouse the success response from backend is a false(boolean value)
+            if (result?.payload === true) { 
                 setListOfGroups((prevGroups) =>
                     prevGroups.map((group) => {
                         if (group.GroupId === groupId) {
@@ -131,7 +130,7 @@ const GroupCard = React.memo(({ groupName, emails, count, groupId, setIsMounting
                         return group;
                     })
                 );
-                dispatch(getGroupsByUserId({ userId, authToken: user?.token }))
+                dispatch(getGroups({ authToken: user?.Token }))
                 showToast({
                     title: "Email Deleted",
                     description: "The email was removed from the group.",
@@ -150,7 +149,7 @@ const GroupCard = React.memo(({ groupName, emails, count, groupId, setIsMounting
                 variant: "error"
             });
         });
-    }, [dispatch, userId, user?.token, groupId, showToast, setIsMounting, setListOfGroups, error])
+    }, [dispatch, user?.Token, groupId, showToast, setIsMounting, setListOfGroups, error])
 
     return (
         <div className="group">

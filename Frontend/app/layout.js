@@ -10,6 +10,7 @@ import { ThemeProvider } from "next-themes";
 import AuthGuard from "@/components/Auth/AuthGuard";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
+import AuthRefresh from "@/components/Auth/AuthRefresh";
 
 const inter = Inter({ subsets: ["latin"], weight: ["400", "600", "700"], variable: "--font-inter", });
 
@@ -30,10 +31,10 @@ export default function RootLayout({
 
   // a user is currently on /dashboard. When they eventually navigate to /pdf/manage-groups, it will load faster (typically instantly) because:
   useEffect(() => {
-    router.prefetch('/pdf/manage-groups'); // 👈 preload this route
-    router.prefetch('/user/add-profile'); // 👈 preload this route
-    router.prefetch('/user/feedback'); // 👈 preload this route
-    router.prefetch('/pdf/pdflist'); // 👈 preload this route
+    router.prefetch('/pdf/manage-groups'); 
+    router.prefetch('/user/add-profile'); 
+    router.prefetch('/user/feedback'); 
+    router.prefetch('/pdf/pdflist'); 
   }, [router]);
 
   return (
@@ -43,6 +44,7 @@ export default function RootLayout({
       >
         <Provider store={store}>
           <PersistGate loading={null} persistor={persistor}>
+            <AuthRefresh />
             <ThemeProvider attribute="class" defaultTheme="light" enableSystem>
               <AuthGuard>
                 {children}

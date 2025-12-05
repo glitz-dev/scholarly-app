@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Loader2, X, Plus, Users, Mail } from "lucide-react";
 import { Textarea } from "../ui/textarea";
 import { useDispatch, useSelector } from "react-redux";
-import { addGroup, getGroupsByUserId } from "@/store/group-slice";
+import { addGroup, getGroups } from "@/store/group-slice";
 import useUserId from "@/hooks/useUserId";
 import { toast } from "sonner";
 import { useCustomToast } from "@/hooks/useCustomToast";
@@ -72,7 +72,7 @@ const CreateGroup = ({ setIsMounting, listOfGroups, setListOfGroups }) => {
     setIsMounting(false)
     setIsSubmitting(true)
 
-    if (!user?.token) {
+    if (!user?.Token) {
       toast.error("Unauthorized! Please log in again.");
       return;
     }
@@ -88,10 +88,9 @@ const CreateGroup = ({ setIsMounting, listOfGroups, setListOfGroups }) => {
     try {
       const response = await dispatch(
         addGroup({
-          userId: userId,
           groupName: formattedData?.name,
           tagsText: emails.join(","),
-          authToken: user?.token,
+          authToken: user?.Token,
         })
       ).unwrap();
       if (response === true) {
@@ -104,7 +103,7 @@ const CreateGroup = ({ setIsMounting, listOfGroups, setListOfGroups }) => {
         };
 
         setListOfGroups((prevGroups) => [...prevGroups, newGroup]);
-        dispatch(getGroupsByUserId({ userId, authToken: user?.token }))
+        dispatch(getGroups({ authToken: user?.Token }))
 
         showToast({
           title: "Group created successfully!",

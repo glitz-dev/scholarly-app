@@ -101,7 +101,7 @@ const PdfCard = ({
   const handlePdfClick = async () => {
     try {
       const result = await dispatch(
-        getUploadedPdf({ uploadId: id, authToken: user?.token })
+        getUploadedPdf({ uploadId: id, authToken: user?.Token })
       );
 
       if (result.meta.requestStatus === "fulfilled") {

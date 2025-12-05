@@ -6,7 +6,7 @@ import PdfDocument from './PdfDocument';
 import PdfSidebar from './PdfSidebar';
 import { useCustomToast } from '@/hooks/useCustomToast';
 import { useDispatch, useSelector } from 'react-redux';
-import { getGroupsByUserId } from '@/store/group-slice';
+import { getGroups } from '@/store/group-slice';
 import useUserId from '@/hooks/useUserId';
 import 'react-pdf/dist/esm/Page/AnnotationLayer.css';
 import 'react-pdf/dist/esm/Page/TextLayer.css';
@@ -40,7 +40,7 @@ const PdfViewer = ({ pdfUrl: initialPdfUrl }) => {
   const [showBox, setShowBox] = useState(false);
   const [scrollMode, setScrollMode] = useState('vertical');
   const [highlightAll, setHighlightAll] = useState(false);
-  const [selectedColor, setSelectedColor] = useState('#EE72C1'); 
+  const [selectedColor, setSelectedColor] = useState('#EE72C1');
   const [selectedPenColor, setSelectedPenColor] = useState('#87CEEB');
   const [annotations, setAnnotations] = useState([]);
   const [showNoteForm, setShowNoteForm] = useState(false);
@@ -102,18 +102,14 @@ const PdfViewer = ({ pdfUrl: initialPdfUrl }) => {
     console.log(`Deleted annotation with ID ${annotationId}`);
   }, []);
 
-  const handleAddNote = useCallback(() => {
-    setShowNoteForm(true);
-    setShowBox(false);
-    const menu = contextMenuRef.current;
-    if (menu) menu.style.display = 'none';
-  }, []);
+  // In PdfViewer.jsx, update the handleNoteSubmit function as follows:
 
   const handleNoteSubmit = useCallback(
     (note) => {
       if (!currentHighlight || !currentHighlight.text) {
         setShowNoteForm(false);
         setCurrentHighlight(null);
+        setQuestion(''); // Reset question when closing without valid highlight
         return;
       }
 
@@ -144,6 +140,7 @@ const PdfViewer = ({ pdfUrl: initialPdfUrl }) => {
       setAnnotations((prev) => [...prev, ann]);
       setShowNoteForm(false);
       setCurrentHighlight(null);
+      setQuestion(''); // Reset question after successful submission
 
       // Clear selection
       const sel = window.getSelection();
@@ -153,6 +150,18 @@ const PdfViewer = ({ pdfUrl: initialPdfUrl }) => {
     },
     [currentHighlight, selectedColor]
   );
+
+  // Additionally, update the handleAddNote function to ensure the form opens empty:
+
+  const handleAddNote = useCallback(() => {
+    setQuestion(''); // Reset question when opening the form
+    setShowNoteForm(true);
+    setShowBox(false);
+    const menu = contextMenuRef.current;
+    if (menu) menu.style.display = 'none';
+  }, []);
+
+
 
   useEffect(() => {
     const originalWarn = console.warn;
@@ -184,7 +193,7 @@ const PdfViewer = ({ pdfUrl: initialPdfUrl }) => {
 
   useEffect(() => {
     if (userId && user?.token) {
-      dispatch(getGroupsByUserId({ userId, authToken: user?.token }));
+      dispatch(getGroups({ userId, authToken: user?.token }));
     }
   }, [dispatch, userId, user?.token]);
 

@@ -20,9 +20,8 @@ const useUserId = () => {
     };
 
     const userId = useMemo(() => {
-        return user?.token ? getUserIdFromToken(user.token) : null;
+        return user?.token ? getUserIdFromToken(user?.Token) : null;
     }, [user?.token]);
-
     return userId;
 };
 

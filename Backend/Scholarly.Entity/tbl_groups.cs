@@ -13,7 +13,7 @@ namespace Scholarly.Entity
             get;
             set;
         }
-        public string created_by
+        public int? created_by
         {
             get;
             set;
@@ -37,7 +37,7 @@ namespace Scholarly.Entity
             set;
         }
 
-        public string? updated_by
+        public int? updated_by
         {
             get;
             set;
@@ -49,7 +49,7 @@ namespace Scholarly.Entity
             set;
         }
 
-        public string user_id
+        public int? user_id
         {
             get;
             set;

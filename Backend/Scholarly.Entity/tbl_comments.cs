@@ -13,10 +13,10 @@ namespace Scholarly.Entity
         [Key]
         public long comments_id { get; set; }
         public string comment { get; set; }
-        public long user_id { get; set; }
+        public int? user_id { get; set; }
         public int answer_id { get; set; }
         public int question_id { get; set; }
-        public string created_by { get; set; }
+        public int? created_by { get; set; }
         public DateTime creation_date { get; set; }
         public bool is_seen { get; set; }
     }

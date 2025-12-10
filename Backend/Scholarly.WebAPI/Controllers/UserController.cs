@@ -1,28 +1,24 @@
-﻿using Microsoft.AspNetCore.Http;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Cors;
 using Microsoft.AspNetCore.Mvc;
+using NLog;
 using Scholarly.DataAccess;
 using Scholarly.Entity;
+using Scholarly.WebAPI.DataAccess;
+using Scholarly.WebAPI.DTOs.Common;
+using Scholarly.WebAPI.DTOs.User;
 using Scholarly.WebAPI.Helper;
 using Scholarly.WebAPI.Model;
-using StackExchange.Redis;
-using System.Net.Mail;
+using Scholarly.WebAPI.Services;
 using System.Net;
-using NLog;
-using Microsoft.EntityFrameworkCore;
-using System.Linq.Expressions;
-using System.Reflection;
-using System;
-using Microsoft.AspNetCore.Identity;
-using Scholarly.WebAPI.DataAccess;
-using System.IdentityModel.Tokens.Jwt;
-using Microsoft.IdentityModel.Tokens;
+using System.Net.Mail;
 using System.Security.Claims;
-using DocumentFormat.OpenXml.Office2021.Excel.RichDataWebImage;
 
 namespace Scholarly.WebAPI.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
+    [EnableCors("allowAll")]
     public class UserController : ControllerBase
     {
         private readonly SWBDBContext _swbDBContext;
@@ -30,12 +26,27 @@ namespace Scholarly.WebAPI.Controllers
         private static Logger _logger = LogManager.GetCurrentClassLogger();
         private readonly IUserDa _IUserDa;
         private readonly IJWTAuthenticationManager _jWTAuthenticationManager;
-        public UserController(IConfiguration configuration, SWBDBContext swbDBContext, IUserDa iIUserDa, IJWTAuthenticationManager jWTAuthenticationManager)
+        private readonly IUserService _userService;
+        private readonly ILogger<UserController> _controllerLogger;
+        private readonly CurrentContext _currentContext;
+
+        public UserController(
+            IConfiguration configuration, 
+            SWBDBContext swbDBContext, 
+            IUserDa iIUserDa, 
+            IJWTAuthenticationManager jWTAuthenticationManager,
+            IUserService userService,
+            ILogger<UserController> logger,
+            IHttpContextAccessor httpContextAccessor)
         {
             _config = configuration;
             _swbDBContext = swbDBContext;
             _IUserDa = iIUserDa;
-            _jWTAuthenticationManager =jWTAuthenticationManager;
+            _jWTAuthenticationManager = jWTAuthenticationManager;
+            _userService = userService;
+            _controllerLogger = logger;
+            _currentContext = Common.GetCurrentContext(
+                httpContextAccessor.HttpContext.User.Identity as ClaimsIdentity);
         }
         [HttpGet]
         [Route("hello")]
@@ -75,13 +86,13 @@ namespace Scholarly.WebAPI.Controllers
 
         [HttpPost]
         [Route("saveuserdetails")]
-        public async Task<ActionResult> SaveUserDetails(string UserId, int? SpecilizationId, string University, string CurrentPosition, string CurrentLocation, string firstname, string Lastname)
+        public async Task<ActionResult> SaveUserDetails(int userId, int? SpecilizationId, string University, string CurrentPosition, string CurrentLocation, string firstname, string Lastname)
         {
             bool flag = false;
             try
             {
 
-                flag = await _IUserDa.SaveUserDetails(_swbDBContext, UserId, SpecilizationId, University, CurrentPosition, CurrentLocation, firstname, Lastname);
+                flag = await _IUserDa.SaveUserDetails(_swbDBContext, userId, SpecilizationId, University, CurrentPosition, CurrentLocation, firstname, Lastname);
             }
             catch (Exception exception)
             {
@@ -149,11 +160,12 @@ namespace Scholarly.WebAPI.Controllers
 
         [HttpGet]
         [Route("feedback")]
-        public ActionResult FeedBack(int userID)
+        [Authorize]
+        public ActionResult FeedBack()
         {
             tbl_users? tblUser = (
                 from u in _swbDBContext.tbl_users
-                where u.userid == userID
+                where u.userid == _currentContext.UserId
                 select u).FirstOrDefault<tbl_users>();
             
             return Ok(tblUser);
@@ -193,13 +205,14 @@ namespace Scholarly.WebAPI.Controllers
 
         [HttpGet]
         [Route("getuserdetails")]
-        public async Task<ActionResult> GetUserDetails(string UserId)
+        [Authorize]
+        public async Task<ActionResult> GetUserDetails()
         {
             UserLogin? userLogin = new UserLogin();
             
             try
             {
-                userLogin = await _IUserDa.GetUserDetails(_swbDBContext,UserId);
+                userLogin = await _IUserDa.GetUserDetails(_swbDBContext, _currentContext.UserId);
             }
             catch (Exception exception)
             {
@@ -214,9 +227,82 @@ namespace Scholarly.WebAPI.Controllers
             if (tokenModel is null)
                 return BadRequest("Invalid client request");
 
-            var response =await _jWTAuthenticationManager.RefreshApi(tokenModel, _swbDBContext);
+            var response = await _jWTAuthenticationManager.RefreshApi(tokenModel, _swbDBContext);
+            
+            // Handle null response when refresh token is invalid or expired
+            if (response == null)
+                return Unauthorized(new { Message = "Invalid or expired refresh token" });
 
             return Ok(response);
+        }
+
+        // === Modern User Profile Management Methods (using DTOs and Services) ===
+
+        /// <summary>
+        /// Get current authenticated user's profile
+        /// </summary>
+        [HttpGet("me")]
+        [Authorize]
+        public async Task<ActionResult<UserDto>> GetMyProfile()
+        {
+            _controllerLogger.LogInformation("Getting profile for authenticated user ID: {UserId}", 
+                _currentContext.UserId);
+            var user = await _userService.GetUserDetailsAsync(_currentContext.UserId);
+            return Ok(user);
+        }
+
+        /// <summary>
+        /// Update current authenticated user's profile
+        /// </summary>
+        [HttpPut("me")]
+        [Authorize]
+        public async Task<ActionResult> UpdateMyProfile([FromBody] UpdateUserDto updateDto)
+        {
+            _controllerLogger.LogInformation("Updating profile for authenticated user ID: {UserId}", 
+                _currentContext.UserId);
+            await _userService.UpdateUserDetailsAsync(_currentContext.UserId, updateDto);
+            return Ok(new { Message = "Profile updated successfully" });
+        }
+
+        /// <summary>
+        /// Get all specializations (public endpoint)
+        /// </summary>
+        [HttpGet("specializations")]
+        public async Task<ActionResult<IEnumerable<SpecializationDto>>> GetAllSpecializations()
+        {
+            _controllerLogger.LogInformation("Getting all specializations");
+            var specializations = await _userService.GetSpecializationsAsync();
+            return Ok(specializations);
+        }
+
+        // === Admin Methods (for accessing other users' data) ===
+
+        /// <summary>
+        /// Admin: Get any user's details (Admin role required)
+        /// </summary>
+        [HttpGet("admin/{userId}")]
+        [Authorize(Roles = "Admin")]
+        public async Task<ActionResult<UserDto>> GetUserDetailsAdmin(int userId)
+        {
+            _controllerLogger.LogInformation("Admin {AdminId} accessing user {UserId}", 
+                _currentContext.UserId, userId);
+            var user = await _userService.GetUserDetailsAsync(userId);
+            return Ok(user);
+        }
+
+        /// <summary>
+        /// Admin: Update any user's profile (Admin role required)
+        /// </summary>
+        [HttpPut("admin/{userId}")]
+        [Authorize(Roles = "Admin")]
+        public async Task<ActionResult> UpdateUserAdmin(
+            int userId,
+            [FromBody] UpdateUserDto updateDto)
+        {
+            _controllerLogger.LogInformation("Admin {AdminId} updating user {UserId}", 
+                _currentContext.UserId, userId);
+            await _userService.UpdateUserDetailsAsync(userId, updateDto);
+            return Ok(new { Message = "User profile updated successfully by admin" });
         }
     }
 }

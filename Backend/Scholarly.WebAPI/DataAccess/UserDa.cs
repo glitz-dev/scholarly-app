@@ -10,10 +10,10 @@ namespace Scholarly.WebAPI.DataAccess
     {
         Task<tbl_users> Registration(SWBDBContext swbDBContext, User user);
         Task<string> ConfirmEmail(SWBDBContext swbDBContext, string token, string email);
-        Task<bool> SaveUserDetails(SWBDBContext swbDBContext, string UserId, int? SpecilizationId, string University, string CurrentPosition, string CurrentLocation, string firstname, string Lastname);
+        Task<bool> SaveUserDetails(SWBDBContext swbDBContext, int userId, int? SpecilizationId, string University, string CurrentPosition, string CurrentLocation, string firstname, string Lastname);
         Task<TotalCounts?> GetCounts(SWBDBContext swbDBContext);
         Task<List<UserLogin>?> GetSpecializations(SWBDBContext swbDBContext);
-        Task<UserLogin?> GetUserDetails(SWBDBContext swbDBContext, string UserId);
+        Task<UserLogin?> GetUserDetails(SWBDBContext swbDBContext, int userId);
     }
     public class UserDa : IUserDa
     {
@@ -49,11 +49,11 @@ namespace Scholarly.WebAPI.DataAccess
                 return "Email Verified";
             }
         }
-        public async Task<bool> SaveUserDetails(SWBDBContext swbDBContext, string UserId, int? SpecilizationId, string University, string CurrentPosition, string CurrentLocation, string firstname, string Lastname)
+        public async Task<bool> SaveUserDetails(SWBDBContext swbDBContext, int userId, int? SpecilizationId, string University, string CurrentPosition, string CurrentLocation, string firstname, string Lastname)
         {
             tbl_users? university = (
                         from s in swbDBContext.tbl_users
-                        where s.userid.ToString() == UserId
+                        where s.userid == userId
                         select s into p
                         select p).FirstOrDefault<tbl_users>();
             if (university != null)
@@ -100,11 +100,11 @@ namespace Scholarly.WebAPI.DataAccess
             return userLogins;
         }
 
-        public async Task<UserLogin?> GetUserDetails(SWBDBContext swbDBContext, string UserId)
+        public async Task<UserLogin?> GetUserDetails(SWBDBContext swbDBContext, int userId)
         {
             UserLogin? userLogin = await (
                     from x in swbDBContext.tbl_users
-                    where x.userid.ToString() == UserId
+                    where x.userid == userId
                     select x into q
                     select new UserLogin()
                     {

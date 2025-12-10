@@ -1,15 +1,8 @@
-﻿using Microsoft.AspNetCore.Authentication.Cookies;
-using Microsoft.AspNetCore.Authentication;
-using Microsoft.AspNetCore.Http;
+﻿using Microsoft.AspNetCore.Cors;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Extensions.Configuration;
-using Scholarly.DataAccess;
-using Scholarly.Entity;
-using static Microsoft.EntityFrameworkCore.DbLoggerCategory.Database;
-using System.Security.Claims;
-using Scholarly.WebAPI.Model;
-using Scholarly.WebAPI.Helper;
-using Microsoft.AspNetCore.Cors;
+using Scholarly.WebAPI.DTOs.Auth;
+using Scholarly.WebAPI.DTOs.User;
+using Scholarly.WebAPI.Services;
 
 namespace Scholarly.WebAPI.Controllers
 {
@@ -18,48 +11,45 @@ namespace Scholarly.WebAPI.Controllers
     [EnableCors("allowAll")]
     public class AccountController : ControllerBase
     {
-        private readonly SWBDBContext _swbDBContext;
-        private readonly IConfiguration _config;
-        private readonly IJWTAuthenticationManager _jWTAuthenticationManager;
-        public AccountController(IConfiguration configuration, SWBDBContext swbDBContext,IJWTAuthenticationManager jWTAuthenticationManager)
+        private readonly IUserService _userService;
+        private readonly ILogger<AccountController> _logger;
+
+        public AccountController(
+            IUserService userService,
+            ILogger<AccountController> logger)
         {
-            _config = configuration;
-            _swbDBContext = swbDBContext;
-            _jWTAuthenticationManager = jWTAuthenticationManager;
+            _userService = userService;
+            _logger = logger;
         }
-        [HttpPost]
-        [Route("Login")]
-        //[ValidateAntiForgeryToken]
-        public ActionResult Login(UserLogin login)
+
+        /// <summary>
+        /// User login endpoint
+        /// </summary>
+        [HttpPost("login")]
+        public async Task<ActionResult<AuthResponseDto>> Login([FromBody] LoginDto loginDto)
         {
-            ActionResult action;
-            string str = "";
-            if (!string.IsNullOrWhiteSpace(login.EmailID) && !string.IsNullOrWhiteSpace(login.Password))
-            {
-                tbl_users? tblUser = (
-                    from a in _swbDBContext.tbl_users
-                    where a.emailid == login.EmailID
-                    select a).FirstOrDefault<tbl_users>();
-                if (tblUser == null)
-                {
-                    return Ok(new {Message = "User Not Exist" });
-                }
-                else
-                {
-                    if (!PasswordHasher.VerifyPassword(tblUser.password, login.Password))
-                    {
-                        return Ok(new { Message = "Invalid credential provided" } );
-                    }
-                    else
-                    {
+            var response = await _userService.LoginAsync(loginDto);
+            return Ok(response);
+        }
 
-                        var reponse = _jWTAuthenticationManager.AuthenticateAsync(tblUser, _swbDBContext);
+        /// <summary>
+        /// User registration endpoint
+        /// </summary>
+        [HttpPost("register")]
+        public async Task<ActionResult<UserDto>> Register([FromBody] RegisterDto registerDto)
+        {
+            var user = await _userService.RegisterAsync(registerDto);
+            return Ok(user);
+        }
 
-                        return Ok(reponse.Result);
-                    }
-                }
-            }
-            return Ok("");
+        /// <summary>
+        /// Confirm email endpoint
+        /// </summary>
+        [HttpGet("confirm-email")]
+        public async Task<ActionResult> ConfirmEmail([FromQuery] string token, [FromQuery] string email)
+        {
+            await _userService.ConfirmEmailAsync(token, email);
+            return Ok(new { Message = "Email confirmed successfully" });
         }
     }
 }

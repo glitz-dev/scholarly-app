@@ -17,7 +17,6 @@ namespace Scholarly.Entity
             set;
         }
 
-        [ForeignKey("Pdf_Uploads")]
         public int pdf_uploaded_id { get; set;}
         public tbl_pdf_uploads? Pdf_Uploads { get; set; }
 

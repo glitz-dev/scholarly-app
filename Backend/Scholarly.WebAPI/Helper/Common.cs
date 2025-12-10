@@ -12,11 +12,22 @@ namespace Scholarly.WebAPI.Helper
         public static CurrentContext GetCurrentContext(ClaimsIdentity identity)
         {
             var currentContext = new CurrentContext();
-            IEnumerable<Claim> claims = identity.Claims;
+            
+            // Handle null or unauthenticated identity (e.g., for /refresh endpoint or non-authenticated requests)
+            if (identity == null || !identity.IsAuthenticated)
+            {
+                return currentContext; // Return empty context for non-authenticated requests
+            }
+            
+            // Safely extract claims with null checks
+            var userIdClaim = identity.FindFirst("UserId");
+            var userClaim = identity.FindFirst("User");
+            var userMailClaim = identity.FindFirst("UserMail");
 
-            currentContext.UserId = Convert.ToInt32(identity.FindFirst("UserId").Value);
-            currentContext.User = Convert.ToString(identity.FindFirst("User").Value);
-            currentContext.UserMail = Convert.ToString(identity.FindFirst("UserMail").Value);
+            currentContext.UserId = userIdClaim != null ? Convert.ToInt32(userIdClaim.Value) : 0;
+            currentContext.User = userClaim?.Value ?? string.Empty;
+            currentContext.UserMail = userMailClaim?.Value ?? string.Empty;
+            
             return currentContext;
         }
 

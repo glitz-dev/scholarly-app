@@ -13,6 +13,12 @@ using Scholarly.WebAPI.DataAccess;
 using System.Net;
 using Microsoft.AspNetCore.HttpOverrides;
 using Npgsql;
+using Scholarly.WebAPI.Model;
+using Scholarly.DataAccess.Repositories;
+using Scholarly.WebAPI.Services;
+using Scholarly.WebAPI.Middleware;
+using FluentValidation;
+using FluentValidation.AspNetCore;
 
 
 var builder = WebApplication.CreateBuilder(args);
@@ -26,22 +32,56 @@ builder.Services.Configure<ForwardedHeadersOptions>(options =>
 {
     options.KnownProxies.Add(IPAddress.Parse("10.0.0.100"));
 });
-builder.Services.AddControllers();
-// Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
-builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
-builder.Services.AddDbContext<SWBDBContext>(option => option.UseNpgsql(configuration["ConnectionStrings:DefaultConnection"]));
-builder.Services.AddSingleton<IJWTAuthenticationManager>(new JWTAuthenticationManager(configuration));
-builder.Services.AddTransient<IPDFHelper, PDFHelper>();
-builder.Services.AddTransient<IPdfDa, PdfDa>();
-builder.Services.AddTransient<IUserDa,UserDa>();
-builder.Services.AddTransient<IGeminiService, GeminiService>();
-builder.Services.AddTransient<IMetadataService, MetadataService>();
+
+// Add HttpContextAccessor
+builder.Services.AddHttpContextAccessor();
+
+// Add AutoMapper
+builder.Services.AddAutoMapper(typeof(Program));
+
+// Add FluentValidation
+builder.Services.AddFluentValidationAutoValidation();
+builder.Services.AddValidatorsFromAssemblyContaining<Program>();
+
 builder.Services.AddControllers()
     .AddNewtonsoftJson(options =>
     {
         options.SerializerSettings.ContractResolver = new DefaultContractResolver();
     });
+
+// Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen();
+
+// Database
+builder.Services.AddDbContext<SWBDBContext>(option => 
+    option.UseNpgsql(configuration["ConnectionStrings:DefaultConnection"]));
+
+// Repository Pattern
+builder.Services.AddScoped(typeof(IReadRepository<>), typeof(Repository<>));
+builder.Services.AddScoped(typeof(IRepository<>), typeof(Repository<>));
+
+// Services
+builder.Services.AddScoped<IUserService, UserService>();
+
+// Legacy services (to be refactored)
+builder.Services.AddSingleton<IJWTAuthenticationManager>(new JWTAuthenticationManager(configuration));
+// Helper Services
+builder.Services.AddTransient<IPDFHelper, PDFHelper>();
+
+// Data Access Services
+builder.Services.AddTransient<IPdfDa, PdfDa>();
+builder.Services.AddTransient<IGroupDa, GroupDa>();
+builder.Services.AddTransient<IProjectDa, ProjectDa>();
+builder.Services.AddTransient<IAnnotationDa, AnnotationDa>();
+builder.Services.AddTransient<IUserDa, UserDa>();
+
+// AI Services
+builder.Services.AddTransient<IGeminiService, GeminiService>();
+builder.Services.AddTransient<IMetadataService, MetadataService>();
+
+// JWT Authentication - TODO: Move secret to configuration
+var jwtKey = configuration["Jwt:SecretKey"] ?? "qk6McRhZFLF9S3OwEuJeCslLWKaqVsDiGQIfuGJKZsI=";
 builder.Services.AddAuthentication(x =>
 {
     x.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
@@ -50,7 +90,7 @@ builder.Services.AddAuthentication(x =>
 }).AddJwtBearer(o =>
 {
     o.RequireHttpsMetadata = false;
-    var key = Encoding.UTF8.GetBytes("qk6McRhZFLF9S3OwEuJeCslLWKaqVsDiGQIfuGJKZsI=");
+    var key = Encoding.UTF8.GetBytes(jwtKey);
     o.SaveToken = true;
     o.TokenValidationParameters = new TokenValidationParameters
     {
@@ -62,7 +102,8 @@ builder.Services.AddAuthentication(x =>
         IssuerSigningKey = new SymmetricSecurityKey(key)
     };
 });
-// enable CORS Policy
+
+// CORS Policy - TODO: Make this more restrictive in production
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("allowAll", policy =>
@@ -72,19 +113,33 @@ builder.Services.AddCors(options =>
             .AllowAnyHeader()
             .AllowAnyMethod();
     });
-        
 });
 
 NpgsqlConnection.GlobalTypeMapper.EnableDynamicJson();
 
+// Configure NLog from appsettings.json
 GlobalDiagnosticsContext.Set("NLogDb", configuration["ConnectionStrings:DefaultConnection"]);
-// Add NLog
 builder.Logging.ClearProviders();
 builder.Host.UseNLog();
+
+// Configure logging settings
+var loggingSettings = configuration.GetSection("LoggingSettings").Get<Scholarly.WebAPI.Model.LoggingSettings>();
+if (loggingSettings != null)
+{
+    Scholarly.WebAPI.Helper.LoggingHelper.ConfigureNLog(loggingSettings);
+}
 
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
+
+// Global Exception Handler Middleware (should be first)
+app.UseMiddleware<GlobalExceptionHandlerMiddleware>();
+
+// Request Logging Middleware (optional - can be controlled via configuration)
+// Comment out if not needed or add a configuration setting to enable/disable
+app.UseRequestLogging();
+
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
@@ -92,18 +147,20 @@ if (app.Environment.IsDevelopment())
       c.SwaggerEndpoint("/swagger/v1/scholarly-swagger.json", "ScholarlyApi");
       c.RoutePrefix=string.Empty;
     }*/);
-    app.UseDeveloperExceptionPage();
 }
+
 app.UseForwardedHeaders(new ForwardedHeadersOptions
 {
     ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto
 });
+
 app.UseCors("allowAll");
 
 app.UseHttpsRedirection();
 
 app.UseAuthentication();
 app.UseAuthorization();
+
 app.MapControllers();
 
 app.Run();

@@ -1,0 +1,72 @@
+using System.Net;
+using System.Text.Json;
+using Scholarly.WebAPI.Exceptions;
+
+namespace Scholarly.WebAPI.Middleware
+{
+    public class GlobalExceptionHandlerMiddleware
+    {
+        private readonly RequestDelegate _next;
+        private readonly ILogger<GlobalExceptionHandlerMiddleware> _logger;
+
+        public GlobalExceptionHandlerMiddleware(
+            RequestDelegate next, 
+            ILogger<GlobalExceptionHandlerMiddleware> logger)
+        {
+            _next = next;
+            _logger = logger;
+        }
+
+        public async Task InvokeAsync(HttpContext context)
+        {
+            try
+            {
+                await _next(context);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "An unhandled exception occurred: {Message}", ex.Message);
+                await HandleExceptionAsync(context, ex);
+            }
+        }
+
+        private static Task HandleExceptionAsync(HttpContext context, Exception exception)
+        {
+            HttpStatusCode statusCode;
+            string message;
+
+            switch (exception)
+            {
+                case NotFoundException:
+                    statusCode = HttpStatusCode.NotFound;
+                    message = exception.Message;
+                    break;
+                case UnauthorizedException:
+                    statusCode = HttpStatusCode.Unauthorized;
+                    message = exception.Message;
+                    break;
+                case BadRequestException:
+                    statusCode = HttpStatusCode.BadRequest;
+                    message = exception.Message;
+                    break;
+                default:
+                    statusCode = HttpStatusCode.InternalServerError;
+                    message = "An internal server error occurred. Please try again later.";
+                    break;
+            }
+
+            var response = new
+            {
+                status = (int)statusCode,
+                message = message,
+                timestamp = DateTime.UtcNow
+            };
+
+            context.Response.ContentType = "application/json";
+            context.Response.StatusCode = (int)statusCode;
+
+            return context.Response.WriteAsync(JsonSerializer.Serialize(response));
+        }
+    }
+}
+

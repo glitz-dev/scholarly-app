@@ -69,7 +69,7 @@ namespace Scholarly.Entity
             set;
         }
 
-        public string user_id
+        public int? user_id
         {
             get;
             set;

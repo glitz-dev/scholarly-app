@@ -27,7 +27,7 @@ namespace Scholarly.Entity
         public string? author { get; set; }
         
 
-        public string created_by { get; set; }
+        public int? created_by { get; set; }
          
 
         public DateTime? created_date { get; set; }
@@ -52,7 +52,7 @@ namespace Scholarly.Entity
         public bool? status { get; set; }
          
 
-        public string user_id { get; set; }
+        public int? user_id { get; set; }
          
         public string? publisher { get; set; }
          

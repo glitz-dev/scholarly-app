@@ -12,7 +12,7 @@ namespace Scholarly.Entity
         [Key]
         public long rating_id { get; set; }
         public bool is_liked { get; set; }
-        public long user_id { get; set; }
+        public int? user_id { get; set; }
         public int question_id { get; set; }
         public int answer_id { get; set; }
 

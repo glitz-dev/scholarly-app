@@ -299,9 +299,17 @@ namespace Scholarly.WebAPI.Controllers
                     // Trigger background AI processing
                     if (pdfUpload.pdf_uploaded_id > 0)
                     {
+                        HttpClient client = new HttpClient
+                        {
+                            BaseAddress = new Uri($"{Request.Scheme}://{Request.Host}")
+                        };
+                        var relativePath = pdfUpload.pdf_saved_path.Replace("\\", "/").TrimStart('/');
+
                         var record = _swbDBContext.tbl_pdf_summary_list
                             .FirstOrDefault(p => p.pdf_uploaded_id == pdfUpload.pdf_uploaded_id);
-                        
+                         
+                        var fileUploadedpath = new Uri(client.BaseAddress, relativePath);
+
                         if (record != null)
                         {
                             // Fire and forget AI processing tasks
@@ -312,16 +320,17 @@ namespace Scholarly.WebAPI.Controllers
                                     _ConnectionStrings, 
                                     aiHostedApp, 
                                     record.pdf_summary_id, 
-                                    pdfUpload.pdf_uploaded_id);
+                                    pdfUpload.pdf_uploaded_id,
+                                   fileUploadedpath.ToString());
                             });
 
                             Task.Run(async () =>
                             {
                                 _metaDataService.ExtractMetadataAsync(
-                                    _nLogger, 
-                                    pdfUpload.pdf_saved_path, 
-                                    _ConnectionStrings, 
-                                    pdfUpload.doi_number, 
+                                    _nLogger,
+                                    pdfUpload.pdf_saved_path,
+                                    _ConnectionStrings,
+                                    pdfUpload.doi_number,
                                     pdfUpload.pdf_uploaded_id);
                             });
                         }

@@ -11,11 +11,12 @@ using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Xml.Linq;
+using Microsoft.Extensions.Configuration;
 
 public interface IGeminiService
 {
     Task SummarizeTextAsync(Logger logger, string _connectionStrings, string pdfPath, string apiKey, int pdfSummaryId);
-    Task SummarizeText_QA_Async(Logger logger, string _connectionStrings, string hostedApp, int pdfSummaryId, int upload_id);
+    Task SummarizeText_QA_Async(Logger logger, string _connectionStrings, string hostedApp, int pdfSummaryId, int upload_id, string uploadPath);
 }
 public class GeminiService : IGeminiService
 {
@@ -88,21 +89,33 @@ public class GeminiService : IGeminiService
         }
     }
 
-    public async Task SummarizeText_QA_Async(Logger logger, string _connectionStrings, string hostedApp, int pdfSummaryId, int upload_id)
+    public async Task SummarizeText_QA_Async(Logger logger, string _connectionStrings, string hostedApp, int pdfSummaryId, int upload_id, string uploadPath)
     {
         try
         {
             JsonObject jo = new()
             {
-                { "storageKey", JsonValue.Create("thesis.pdf") },
-                { "projectId", JsonValue.Create("abc") },
-                { "documentId", JsonValue.Create("doc1") },
-                { "ocr", JsonValue.Create(true) },
-                { "blip", JsonValue.Create(false) },
-                { "userId", JsonValue.Create("test") },
-                { "password", JsonValue.Create("test") },
-                { "useEncryption", JsonValue.Create(false) }
+                ["storageKey"] = uploadPath,
+                ["projectId"] = "abc",
+                ["documentId"] = "doc1",
+                ["ocr"] = true,
+                ["blip"] = false,
+                ["userId"] = "test",
+                ["password"] = "test",
+                ["useEncryption"] = false
             };
+
+            //JsonObject jo = new()
+            //{
+            //    { "storageKey", JsonValue.Create(uploadPath) },
+            //    { "projectId", JsonValue.Create("abc") },
+            //    { "documentId", JsonValue.Create("doc1") },
+            //    { "ocr", JsonValue.Create(true) },
+            //    { "blip", JsonValue.Create(false) },
+            //    { "userId", JsonValue.Create("test") },
+            //    { "password", JsonValue.Create("test") },
+            //    { "useEncryption", JsonValue.Create(false) }
+            //};
 
             var content = new StringContent(System.Text.Json.JsonSerializer.Serialize(jo), Encoding.UTF8, "application/json");
 
@@ -120,7 +133,8 @@ public class GeminiService : IGeminiService
             using var jsonDoc = JsonDocument.Parse(responseContent);
             var result = jsonDoc.RootElement;
             string summary_result;
-            if (result.TryGetProperty("text_analysis", out JsonElement textAnalysis) && textAnalysis.TryGetProperty("summary", out JsonElement Summary))
+            if (result.ValueKind == JsonValueKind.Object && result.TryGetProperty("text_analysis", out JsonElement textAnalysis) && textAnalysis.ValueKind == JsonValueKind.Object  
+                                                         && textAnalysis.TryGetProperty("summary", out JsonElement Summary) && Summary.ValueKind == JsonValueKind.String)
             {
                 summary_result = Summary.GetString() ?? "";
                 if (!string.IsNullOrWhiteSpace(summary_result))

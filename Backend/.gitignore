@@ -97,3 +97,4 @@ TestResults/
 
 # Ignore local folders
 Scholarly.WebAPI/UploadedFiles/
+Scholarly.WebAPI/wwwroot/UploadedFiles/

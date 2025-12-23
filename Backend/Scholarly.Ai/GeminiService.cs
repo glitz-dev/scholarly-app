@@ -105,36 +105,31 @@ public class GeminiService : IGeminiService
                 ["useEncryption"] = false
             };
 
-            //JsonObject jo = new()
-            //{
-            //    { "storageKey", JsonValue.Create(uploadPath) },
-            //    { "projectId", JsonValue.Create("abc") },
-            //    { "documentId", JsonValue.Create("doc1") },
-            //    { "ocr", JsonValue.Create(true) },
-            //    { "blip", JsonValue.Create(false) },
-            //    { "userId", JsonValue.Create("test") },
-            //    { "password", JsonValue.Create("test") },
-            //    { "useEncryption", JsonValue.Create(false) }
-            //};
 
             var content = new StringContent(System.Text.Json.JsonSerializer.Serialize(jo), Encoding.UTF8, "application/json");
 
 
             //using var cts = new CancellationTokenSource(TimeSpan.FromMinutes(5));
             var response = await _httpClient.PostAsync(hostedApp, content);
+            var responseContent = await response.Content.ReadAsStringAsync();
             if (!response.IsSuccessStatusCode)
             {
-                var responseBody = await response.Content.ReadAsStringAsync();
                 Console.WriteLine($"Status: {response.StatusCode}");
                 Console.WriteLine("Response Body:");
-                Console.WriteLine(responseBody);
+                Console.WriteLine(responseContent);
+                return;
             }
-            var responseContent = await response.Content.ReadAsStringAsync();
+
+            if (string.IsNullOrWhiteSpace(responseContent) || responseContent.Equals("NULL", StringComparison.OrdinalIgnoreCase))
+            {
+                Console.WriteLine("Empty response");
+                return;
+            }
+           
             using var jsonDoc = JsonDocument.Parse(responseContent);
             var result = jsonDoc.RootElement;
             string summary_result;
-            if (result.ValueKind == JsonValueKind.Object && result.TryGetProperty("text_analysis", out JsonElement textAnalysis) && textAnalysis.ValueKind == JsonValueKind.Object  
-                                                         && textAnalysis.TryGetProperty("summary", out JsonElement Summary) && Summary.ValueKind == JsonValueKind.String)
+            if (result.TryGetProperty("text_analysis", out JsonElement textAnalysis) && textAnalysis.TryGetProperty("summary", out JsonElement Summary))
             {
                 summary_result = Summary.GetString() ?? "";
                 if (!string.IsNullOrWhiteSpace(summary_result))

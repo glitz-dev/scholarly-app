@@ -232,9 +232,8 @@ namespace Scholarly.WebAPI.Controllers
                     string aiHostedApp = _config.GetSection("AppSettings")["Summary_QA_app"]!;
                     string rootPath = _env.ContentRootPath;
                     string fileName = Path.GetFileName(formval.file.FileName);
-                    string configPath = Helper.Common.CreateDownloadFolders(
-                        _config.GetSection("AppSettings")["DownloadFolderPath"], 
-                        _nLogger);
+                    string physicalPath = _config.GetValue<string>("FileSettings:PhysicalFolderPath") ?? throw new InvalidOperationException("App Settings:PhysicalFolderPath is not configured .");
+                    string configPath = Helper.Common.CreateDownloadFolders(physicalPath, _nLogger);
                     string uploadedPath = Path.Combine(rootPath, configPath);
                     
                     // Validate PDF extension
@@ -259,7 +258,7 @@ namespace Scholarly.WebAPI.Controllers
                     var pdfUpload = new tbl_pdf_uploads()
                     {
                         user_id = _currentContext.UserId,
-                        pdf_saved_path = Path.Combine(configPath, fileName),
+                        pdf_saved_path = fileName,
                         pub_med_id = formval.pubmedid,
                         doi_number = formval.doi,
                         article = formval.article,
@@ -296,39 +295,35 @@ namespace Scholarly.WebAPI.Controllers
                         "PDF uploaded successfully: {PdfId}, triggering AI processing", 
                         pdfUpload.pdf_uploaded_id);
 
+                    string urlPath = physicalPath.Replace("wwwroot/", "/").Replace("wwwroot\\", "/");
+
                     // Trigger background AI processing
                     if (pdfUpload.pdf_uploaded_id > 0)
                     {
-                        HttpClient client = new HttpClient
-                        {
-                            BaseAddress = new Uri($"{Request.Scheme}://{Request.Host}")
-                        };
-                        var relativePath = pdfUpload.pdf_saved_path.Replace("\\", "/").TrimStart('/');
+                        string downloadUrl = $"{Request.Scheme}://{Request.Host}{urlPath}/{pdfUpload.pdf_saved_path}";
 
                         var record = _swbDBContext.tbl_pdf_summary_list
                             .FirstOrDefault(p => p.pdf_uploaded_id == pdfUpload.pdf_uploaded_id);
-                         
-                        var fileUploadedpath = new Uri(client.BaseAddress, relativePath);
-
+                          
                         if (record != null)
                         {
                             // Fire and forget AI processing tasks
                             Task.Run(async () =>
                             {
                                 _GeminiService.SummarizeText_QA_Async(
-                                    _nLogger, 
-                                    _ConnectionStrings, 
-                                    aiHostedApp, 
-                                    record.pdf_summary_id, 
+                                    _nLogger,
+                                    _ConnectionStrings,
+                                    aiHostedApp,
+                                    record.pdf_summary_id,
                                     pdfUpload.pdf_uploaded_id,
-                                   fileUploadedpath.ToString());
+                                   downloadUrl);
                             });
 
                             Task.Run(async () =>
                             {
                                 _metaDataService.ExtractMetadataAsync(
                                     _nLogger,
-                                    pdfUpload.pdf_saved_path,
+                                    Path.Combine(physicalPath, pdfUpload.pdf_saved_path),
                                     _ConnectionStrings,
                                     pdfUpload.doi_number,
                                     pdfUpload.pdf_uploaded_id);

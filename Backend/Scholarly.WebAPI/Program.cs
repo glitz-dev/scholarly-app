@@ -155,6 +155,7 @@ app.UseForwardedHeaders(new ForwardedHeadersOptions
 });
 
 app.UseCors("allowAll");
+app.UseStaticFiles();
 
 app.UseHttpsRedirection();
 

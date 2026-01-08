@@ -301,6 +301,8 @@ namespace Scholarly.WebAPI.Controllers
                     if (pdfUpload.pdf_uploaded_id > 0)
                     {
                         string downloadUrl = $"{Request.Scheme}://{Request.Host}{urlPath}/{pdfUpload.pdf_saved_path}";
+                        var analyzeDataUrl = new Uri(new Uri(aiHostedApp.EndsWith("/") ? aiHostedApp : aiHostedApp + "/"), "analyze").ToString();
+                        var conentExtractUrl = new Uri(new Uri(aiHostedApp.EndsWith("/") ? aiHostedApp : aiHostedApp + "/"), "extract_content").ToString();
 
                         var record = _swbDBContext.tbl_pdf_summary_list
                             .FirstOrDefault(p => p.pdf_uploaded_id == pdfUpload.pdf_uploaded_id);
@@ -308,26 +310,36 @@ namespace Scholarly.WebAPI.Controllers
                         if (record != null)
                         {
                             // Fire and forget AI processing tasks
+                            //Task.Run(async () =>
+                            //{
+                            //    _GeminiService.SummarizeText_QA_Async(
+                            //        _nLogger,
+                            //        _ConnectionStrings,
+                            //        analyzeDataUrl,
+                            //        record.pdf_summary_id,
+                            //        pdfUpload.pdf_uploaded_id,
+                            //       downloadUrl);
+                            //});
+
                             Task.Run(async () =>
                             {
-                                _GeminiService.SummarizeText_QA_Async(
+                                _GeminiService.ContentExtract_Async(
                                     _nLogger,
                                     _ConnectionStrings,
-                                    aiHostedApp,
-                                    record.pdf_summary_id,
+                                    conentExtractUrl,
                                     pdfUpload.pdf_uploaded_id,
                                    downloadUrl);
                             });
 
-                            Task.Run(async () =>
-                            {
-                                _metaDataService.ExtractMetadataAsync(
-                                    _nLogger,
-                                    Path.Combine(physicalPath, pdfUpload.pdf_saved_path),
-                                    _ConnectionStrings,
-                                    pdfUpload.doi_number,
-                                    pdfUpload.pdf_uploaded_id);
-                            });
+                            //Task.Run(async () =>
+                            //{
+                            //    _metaDataService.ExtractMetadataAsync(
+                            //        _nLogger,
+                            //        Path.Combine(physicalPath, pdfUpload.pdf_saved_path),
+                            //        _ConnectionStrings,
+                            //        pdfUpload.doi_number,
+                            //        pdfUpload.pdf_uploaded_id);
+                            //});
                         }
                     }
 

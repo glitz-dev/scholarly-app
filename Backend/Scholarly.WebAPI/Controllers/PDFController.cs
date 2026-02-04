@@ -580,6 +580,7 @@ namespace Scholarly.WebAPI.Controllers
                     string rootPath = _env.ContentRootPath;
                     string physicalPath = _config.GetValue<string>("FileSettings:PhysicalFolderPath") ?? throw new InvalidOperationException("App Settings:PhysicalFolderPath is not configured .");
                     string fullPdfPath = Path.Combine(rootPath, physicalPath, result.pdf_saved_path);
+                    
                     if (!System.IO.File.Exists(fullPdfPath))
                     {
                         _logger.LogWarning("PDF file not found at path: {Path}", fullPdfPath);

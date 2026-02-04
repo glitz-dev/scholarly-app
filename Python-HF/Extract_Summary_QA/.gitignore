@@ -24,7 +24,10 @@ env/
 *.egg-info/
 dist/
 build/
+<<<<<<< HEAD
 static/
+=======
+>>>>>>> 50989e4ce98d66caaae36825c0cab6906634ed2c
 .eggs/
 
 # Logs

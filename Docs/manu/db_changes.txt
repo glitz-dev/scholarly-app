@@ -63,7 +63,6 @@ REFERENCES tbl_projects (project_id)
 ON DELETE CASCADE
 ON UPDATE CASCADE;
 
-
 -- 27 Oct 25
 
 ALTER TABLE tbl_pdf_uploads ADD COLUMN response JSONB;
@@ -75,3 +74,6 @@ alter table tbl_users add column refresh_token text, add column refresh_token_ex
 -- 06 Jan 26
 
 ALTER TABLE tbl_pdf_uploads ADD COLUMN IF NOT EXISTS content text;
+=======
+alter table tbl_users add column refresh_token text, add column refresh_token_expiry_time timestamptz
+

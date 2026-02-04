@@ -1,5 +1,9 @@
 # Ignore local folders
 Docs/
+<<<<<<< HEAD
 Python-HF/
 
 *.zip
+=======
+Python-HF/
+>>>>>>> 50989e4ce98d66caaae36825c0cab6906634ed2c

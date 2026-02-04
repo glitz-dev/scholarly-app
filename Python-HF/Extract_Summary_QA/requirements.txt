@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 fastapi==0.118.0
 uvicorn
 pydantic==2.11.9
@@ -26,3 +27,16 @@ psycopg2-binary==2.9.10
 cryptography
 python-dotenv
 python-multipart
+
+cryptography==46.0.1
+fastapi==0.118.0
+fitz==0.0.1.dev2
+nltk==3.9.1
+numpy<2.3.0,>=2
+opencv_python==4.12.0.88
+Pillow==11.3.0
+pydantic==2.11.9
+PyPDF2==3.0.1
+pytesseract==0.3.13
+torch==2.8.0
+transformers==4.56.1

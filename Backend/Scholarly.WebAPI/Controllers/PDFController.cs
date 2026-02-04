@@ -4,7 +4,9 @@ using NLog;
 using SautinSoft;
 using Scholarly.DataAccess;
 using Scholarly.Entity;
+using Scholarly.Entity.DTO;
 using Scholarly.WebAPI.DataAccess;
+using Scholarly.WebAPI.DTOs.Common;
 using Scholarly.WebAPI.Helper;
 using Scholarly.WebAPI.Model;
 using System.Security.Claims;
@@ -310,16 +312,16 @@ namespace Scholarly.WebAPI.Controllers
                         if (record != null)
                         {
                             // Fire and forget AI processing tasks
-                            //Task.Run(async () =>
-                            //{
-                            //    _GeminiService.SummarizeText_QA_Async(
-                            //        _nLogger,
-                            //        _ConnectionStrings,
-                            //        analyzeDataUrl,
-                            //        record.pdf_summary_id,
-                            //        pdfUpload.pdf_uploaded_id,
-                            //       downloadUrl);
-                            //});
+                            Task.Run(async () =>
+                            {
+                                _GeminiService.SummarizeText_QA_Async(
+                                    _nLogger,
+                                    _ConnectionStrings,
+                                    analyzeDataUrl,
+                                    record.pdf_summary_id,
+                                    pdfUpload.pdf_uploaded_id,
+                                   downloadUrl);
+                            });
 
                             Task.Run(async () =>
                             {
@@ -331,15 +333,15 @@ namespace Scholarly.WebAPI.Controllers
                                    downloadUrl);
                             });
 
-                            //Task.Run(async () =>
-                            //{
-                            //    _metaDataService.ExtractMetadataAsync(
-                            //        _nLogger,
-                            //        Path.Combine(physicalPath, pdfUpload.pdf_saved_path),
-                            //        _ConnectionStrings,
-                            //        pdfUpload.doi_number,
-                            //        pdfUpload.pdf_uploaded_id);
-                            //});
+                            Task.Run(async () =>
+                            {
+                                _metaDataService.ExtractMetadataAsync(
+                                    _nLogger,
+                                    Path.Combine(physicalPath, pdfUpload.pdf_saved_path),
+                                    _ConnectionStrings,
+                                    pdfUpload.doi_number,
+                                    pdfUpload.pdf_uploaded_id);
+                            });
                         }
                     }
 
@@ -604,6 +606,44 @@ namespace Scholarly.WebAPI.Controllers
             {
                 _logger.LogError(ex, "Error downloading PDF {UploadId}", uploadId);
                 return StatusCode(500, $"Error reading PDF: {ex.Message}");
+            }
+        }
+        [HttpGet]
+        [Route("getannotationresult/{uploadId}")]
+        public async Task<ActionResult<List<AnnotationResultDto>>> AnnotationResult(int uploadId, string annotation)
+        {
+            try
+            {
+                _logger.LogInformation(
+                    "Annotation Result Processing Started for {annotation}",
+                    annotation);
+
+                var result = _swbDBContext.tbl_pdf_uploads.FirstOrDefault(p => p.pdf_uploaded_id == uploadId);
+                if (result != null && !string.IsNullOrEmpty(result.content))
+                {
+                    string aiHostedApp = _config.GetSection("AppSettings")["Summary_QA_app"]!;
+                    var annotationProcessUrl = new Uri(new Uri(aiHostedApp.EndsWith("/") ? aiHostedApp : aiHostedApp + "/"), "get_annotations").ToString();
+                    
+                    List<AnnotationResultDto> annotationResult = await _GeminiService.AnnotationResult_Async(
+                            _nLogger,
+                            annotationProcessUrl,
+                            annotation,
+                           result.content);
+
+                    if (annotationResult == null)
+                    {
+                        return StatusCode(502, "AI service failed to return annotations");
+                    }
+
+                    return Ok(annotationResult);
+                }
+
+                return NotFound("No context found for processing annotation: "+annotation);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error processing {annotation}", annotation);
+                return StatusCode(500, $"Error processing {annotation}");
             }
         }
     }

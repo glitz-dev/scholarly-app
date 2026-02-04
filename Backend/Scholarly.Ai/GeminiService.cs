@@ -1,10 +1,10 @@
 ﻿
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Logging;
-using Newtonsoft.Json;
+using Microsoft.Extensions.Logging; 
 using NLog;
 using Npgsql;
 using Scholarly.DataAccess;
+using Scholarly.Entity.DTO;
 using System.Net.Http;
 using System;
 using System.Text;
@@ -17,8 +17,9 @@ public interface IGeminiService
 {
     Task SummarizeTextAsync(Logger logger, string _connectionStrings, string pdfPath, string apiKey, int pdfSummaryId);
     Task SummarizeText_QA_Async(Logger logger, string _connectionStrings, string hostedApp, int pdfSummaryId, int upload_id, string uploadPath);
-
     Task ContentExtract_Async(Logger logger, string _connectionStrings, string hostedApp, int upload_id, string uploadPath);
+
+    Task<List<AnnotationResultDto>> AnnotationResult_Async(Logger logger, string hostedApp, string annotation, string context);
 }
 public class GeminiService : IGeminiService
 {
@@ -78,7 +79,7 @@ public class GeminiService : IGeminiService
                     {
                         conn.Open();
                         using var cmd = new NpgsqlCommand(sql, conn);
-                        cmd.Parameters.AddWithValue("summary", NpgsqlTypes.NpgsqlDbType.Jsonb, JsonConvert.SerializeObject(result));
+                        cmd.Parameters.AddWithValue("summary", NpgsqlTypes.NpgsqlDbType.Jsonb, JsonSerializer.Serialize(result));
                         cmd.Parameters.AddWithValue("id", pdfSummaryId);
                         cmd.ExecuteNonQuery();
                     }
@@ -141,7 +142,7 @@ public class GeminiService : IGeminiService
                     {
                         conn.Open();
                         using var cmd = new NpgsqlCommand(sql, conn);
-                        cmd.Parameters.AddWithValue("summary", NpgsqlTypes.NpgsqlDbType.Jsonb, JsonConvert.SerializeObject(summary_result));
+                        cmd.Parameters.AddWithValue("summary", NpgsqlTypes.NpgsqlDbType.Jsonb, JsonSerializer.Serialize(summary_result));
                         cmd.Parameters.AddWithValue("id", pdfSummaryId);
                         cmd.ExecuteNonQuery();
                     }
@@ -161,8 +162,8 @@ public class GeminiService : IGeminiService
                     {
                         conn.Open();
                         using var cmd = new NpgsqlCommand(sql, conn);
-                        cmd.Parameters.AddWithValue("qa", NpgsqlTypes.NpgsqlDbType.Jsonb, JsonConvert.SerializeObject(qaJson));
-                        cmd.Parameters.AddWithValue("result", NpgsqlTypes.NpgsqlDbType.Jsonb, JsonConvert.SerializeObject(metaResult));
+                        cmd.Parameters.AddWithValue("qa", NpgsqlTypes.NpgsqlDbType.Jsonb, JsonSerializer.Serialize(qaJson));
+                        cmd.Parameters.AddWithValue("result", NpgsqlTypes.NpgsqlDbType.Jsonb, JsonSerializer.Serialize(metaResult));
                         cmd.Parameters.AddWithValue("id", upload_id);
                         cmd.ExecuteNonQuery();
                     }
@@ -240,5 +241,43 @@ public class GeminiService : IGeminiService
             _httpClient.Dispose();
         }
 
+    }
+
+    public async Task<List<AnnotationResultDto>> AnnotationResult_Async(Logger logger, string hostedApp, string annotation, string context)
+    {
+        try
+        {
+            var data = new
+            {
+                userId = "myuser",
+                password = "mypassword",
+                sample_text = annotation,
+                sample_context = context
+            };
+
+            var json = JsonSerializer.Serialize(data);
+            var content = new StringContent(json, Encoding.UTF8, "application/json");
+
+            HttpResponseMessage response = await _httpClient.PostAsync(hostedApp, content);
+            if (!response.IsSuccessStatusCode)
+            {
+                string error = await response.Content.ReadAsStringAsync();
+                logger.Error($"API Error: {response.StatusCode} - {error}");
+                return null;
+            }
+            string responseJson = await response.Content.ReadAsStringAsync();
+
+            return JsonSerializer.Deserialize<List<AnnotationResultDto>>(
+                   responseJson,
+                   new JsonSerializerOptions
+                   {
+                       PropertyNameCaseInsensitive = true
+                   });
+        }
+        catch (Exception ex)
+        {
+            logger.Error(ex);
+            return null;
+        } 
     }
 }

@@ -51,3 +51,5 @@ Thumbs.db
 *.sqlite3
 # Files
 /thesis_1.pdf
+
+*.zip

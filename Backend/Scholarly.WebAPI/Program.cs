@@ -19,6 +19,7 @@ using Scholarly.WebAPI.Services;
 using Scholarly.WebAPI.Middleware;
 using FluentValidation;
 using FluentValidation.AspNetCore;
+using DotNetEnv;
 
 
 var builder = WebApplication.CreateBuilder(args);
@@ -81,7 +82,7 @@ builder.Services.AddTransient<IGeminiService, GeminiService>();
 builder.Services.AddTransient<IMetadataService, MetadataService>();
 
 // JWT Authentication - TODO: Move secret to configuration
-var jwtKey = configuration["Jwt:SecretKey"] ?? "qk6McRhZFLF9S3OwEuJeCslLWKaqVsDiGQIfuGJKZsI=";
+var jwtKey = Environment.GetEnvironmentVariable("Jwt_SecretKey") ?? "qk6McRhZFLF9S3OwEuJeCslLWKaqVsDiGQIfuGJKZsI=";
 builder.Services.AddAuthentication(x =>
 {
     x.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
@@ -153,6 +154,8 @@ app.UseForwardedHeaders(new ForwardedHeadersOptions
 {
     ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto
 });
+
+Env.Load();
 
 app.UseCors("allowAll");
 app.UseStaticFiles();

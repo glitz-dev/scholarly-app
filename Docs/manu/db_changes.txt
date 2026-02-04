@@ -71,3 +71,7 @@ ALTER TABLE tbl_pdf_uploads ADD COLUMN response JSONB;
 -- 28 Oct 25
 
 alter table tbl_users add column refresh_token text, add column refresh_token_expiry_time timestamptz
+
+-- 06 Jan 26
+
+ALTER TABLE tbl_pdf_uploads ADD COLUMN IF NOT EXISTS content text;

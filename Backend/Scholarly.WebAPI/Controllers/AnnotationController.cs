@@ -3,10 +3,14 @@ using Microsoft.AspNetCore.Mvc;
 using NLog;
 using Scholarly.DataAccess;
 using Scholarly.Entity;
+using Scholarly.Entity.DTO;
 using Scholarly.WebAPI.DataAccess;
+using Scholarly.WebAPI.DTOs.Annotation;
 using Scholarly.WebAPI.Helper;
 using Scholarly.WebAPI.Model;
 using System.Security.Claims;
+using Scholarly.Ai;
+using static Org.BouncyCastle.Math.EC.ECCurve;
 
 namespace Scholarly.WebAPI.Controllers
 {
@@ -19,19 +23,25 @@ namespace Scholarly.WebAPI.Controllers
     public class AnnotationController : ControllerBase
     {
         private readonly SWBDBContext _swbDBContext;
+        private readonly IConfiguration _config;
         private readonly IAnnotationDa _annotationDa;
+        private readonly IGeminiService _geminiService;
         private readonly CurrentContext _currentContext;
         private readonly ILogger<AnnotationController> _logger;
         private static Logger _nLogger = LogManager.GetCurrentClassLogger();
 
         public AnnotationController(
-            SWBDBContext swbDBContext, 
-            IAnnotationDa annotationDa, 
+            SWBDBContext swbDBContext,
+            IConfiguration configuration,
+            IAnnotationDa annotationDa,
+            IGeminiService geminiService,
             IHttpContextAccessor httpContextAccessor,
             ILogger<AnnotationController> logger)
         {
             _swbDBContext = swbDBContext;
+            _config = configuration;
             _annotationDa = annotationDa;
+            _geminiService = geminiService;
             _logger = logger;
             _currentContext = Common.GetCurrentContext(
                 httpContextAccessor.HttpContext.User.Identity as ClaimsIdentity);
@@ -156,6 +166,46 @@ namespace Scholarly.WebAPI.Controllers
                 questionId);
             
             return Ok("Not yet implemented");
+        }
+
+
+        [HttpPost]
+        [Route("save")]
+        public async Task<ActionResult<List<AnnotationResultDto>>> SaveAnnotation([FromBody] AnnotationDto annotation)
+        {
+            try
+            {
+                _logger.LogInformation(
+                    "Annotation Result Processing Started for {annotation}",
+                    annotation);
+
+                var result = _swbDBContext.tbl_pdf_uploads.FirstOrDefault(p => p.pdf_uploaded_id == annotation.PdfUploadedID);
+                if (result != null && !string.IsNullOrEmpty(result.content))
+                {
+                    string aiHostedApp = _config.GetSection("AppSettings")["Summary_QA_app"]!;
+                    var annotationProcessUrl = new Uri(new Uri(aiHostedApp.EndsWith("/") ? aiHostedApp : aiHostedApp + "/"), "get_annotations").ToString();
+
+                    List<AnnotationResultDto> annotationResult = await _geminiService.AnnotationResult_Async(
+                            _nLogger,
+                            annotationProcessUrl,
+                            annotation.AnnotatedText,
+                           result.content);
+
+                    if (annotationResult == null)
+                    {
+                        return StatusCode(502, "AI service failed to return annotations");
+                    }
+
+                    return Ok(annotationResult);
+                }
+
+                return NotFound("No context found for processing annotation: " + annotation);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error processing {annotation}", annotation);
+                return StatusCode(500, $"Error processing {annotation}");
+            }
         }
     }
 }

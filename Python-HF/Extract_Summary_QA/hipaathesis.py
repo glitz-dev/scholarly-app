@@ -1,7 +1,6 @@
 import PyPDF2
 import re
 from collections import Counter
-<<<<<<< HEAD
 import os
 import nltk
 import transformers, logging, contextlib
@@ -76,9 +75,6 @@ def setup_nltk_data():
 setup_nltk_data()
 
 # Now import NLTK modules after setup
-=======
-import nltk
->>>>>>> 50989e4ce98d66caaae36825c0cab6906634ed2c
 from nltk.tokenize import sent_tokenize, word_tokenize
 from nltk.corpus import stopwords
 from nltk.stem import WordNetLemmatizer
@@ -86,11 +82,7 @@ import string
 from datetime import datetime, timedelta
 import json
 import torch
-<<<<<<< HEAD
 from transformers import T5ForConditionalGeneration, T5Tokenizer, pipeline, BlipProcessor, BlipForConditionalGeneration, AutoTokenizer, AutoModelForSeq2SeqLM
-=======
-from transformers import T5ForConditionalGeneration, T5Tokenizer, pipeline, BlipProcessor, BlipForConditionalGeneration
->>>>>>> 50989e4ce98d66caaae36825c0cab6906634ed2c
 import warnings
 import fitz  # PyMuPDF
 from PIL import Image, ImageEnhance, ImageFilter
@@ -103,7 +95,6 @@ import logging
 import getpass
 import tempfile
 import shutil
-<<<<<<< HEAD
 import numpy as np
 import requests
 import urllib3
@@ -115,10 +106,6 @@ try:
 except ImportError:
     PSYCOPG2_AVAILABLE = False
     print("Warning: psycopg2 not available. Database features will be disabled.")
-=======
-from fastapi import FastAPI
-from fastapi.staticfiles import StaticFiles
->>>>>>> 50989e4ce98d66caaae36825c0cab6906634ed2c
 from pydantic import BaseModel
 from typing import List, Dict, Any, Optional
 

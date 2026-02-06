@@ -42,7 +42,8 @@ namespace Scholarly.WebAPI.Helper
             claims.Add(new Claim("UserMail", tblUser.emailid));
 
             var jwtSettings = _configuration.GetSection("Jwt");
-            var secretKey = jwtSettings["SecretKey"] ?? throw new InvalidOperationException("JWT SecretKey is not configured in appsettings.json");
+            //var secretKey = jwtSettings["SecretKey"] ?? throw new InvalidOperationException("JWT SecretKey is not configured in appsettings.json");
+            var secretKey = Environment.GetEnvironmentVariable("Jwt_SecretKey") ?? throw new InvalidOperationException("JWT SecretKey is not configured in Environment");
             var issuer = jwtSettings["Issuer"] ?? "yourdomain.com";
             var audience = jwtSettings["Audience"] ?? "yourdomain.com";
 
@@ -85,7 +86,8 @@ namespace Scholarly.WebAPI.Helper
         public ClaimsPrincipal GetPrincipalFromExpiredToken(string token)
         {
             var jwtSettings = _configuration.GetSection("Jwt");
-            var secretKey = jwtSettings["SecretKey"] ?? throw new InvalidOperationException("JWT SecretKey is not configured in appsettings.json");
+            //var secretKey = jwtSettings["SecretKey"] ?? throw new InvalidOperationException("JWT SecretKey is not configured in appsettings.json");
+            var secretKey = Environment.GetEnvironmentVariable("Jwt_SecretKey") ?? throw new InvalidOperationException("JWT SecretKey is not configured in Environment");
 
             var tokenValidationParameters = new TokenValidationParameters
             {

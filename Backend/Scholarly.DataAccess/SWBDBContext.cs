@@ -18,6 +18,8 @@ namespace Scholarly.DataAccess
         public DbSet<tbl_pdf_summary_list> tbl_pdf_summary_list { get; set; }
         public DbSet<tbl_projects> tbl_projects { get; set; }
 
+        public DbSet<tbl_annotation> tbl_annotation { get; set; }
+
         public SWBDBContext(DbContextOptions<SWBDBContext> options) : base(options)
         {
         }
@@ -35,6 +37,14 @@ namespace Scholarly.DataAccess
 
             // Apply configurations for remaining entities using convention
             modelBuilder.ApplyConfigurationsFromAssembly(typeof(SWBDBContext).Assembly);
+
+            // Convert Columns to Json
+            modelBuilder.Entity<tbl_annotation>(e =>
+            {
+                e.Property(x => x.rect).HasColumnType("jsonb");
+                e.Property(x => x.position).HasColumnType("jsonb");
+                e.Property(x => x.llm_response).HasColumnType("jsonb");
+            });
         }
     }
 }

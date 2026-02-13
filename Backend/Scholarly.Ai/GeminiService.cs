@@ -19,18 +19,18 @@ public interface IGeminiService
     Task SummarizeText_QA_Async(Logger logger, string _connectionStrings, string hostedApp, int pdfSummaryId, int upload_id, string uploadPath);
     Task ContentExtract_Async(Logger logger, string _connectionStrings, string hostedApp, int upload_id, string uploadPath);
 
-    Task<List<AnnotationResultDto>> AnnotationResult_Async(Logger logger, string hostedApp, string annotation, string context);
+    Task<List<AnnotationResultDto>> AnnotationResult_Async(string hostedApp, string annotation, string context);
 }
 public class GeminiService : IGeminiService
 {
     private readonly HttpClient _httpClient;
-    private static Logger _logger;
-    public GeminiService(SWBDBContext swbDBContext)
+    private readonly ILogger<GeminiService> _logger;
+    public GeminiService(SWBDBContext swbDBContext, ILogger<GeminiService> logger)
     {
         _httpClient = new HttpClient() {
             Timeout = TimeSpan.FromMinutes(10)
         };
-       
+        _logger = logger;
     }
 
     public async Task SummarizeTextAsync(Logger logger, string _connectionStrings, string pdfPath, string apiKey, int pdfSummaryId)
@@ -243,7 +243,7 @@ public class GeminiService : IGeminiService
 
     }
 
-    public async Task<List<AnnotationResultDto>> AnnotationResult_Async(Logger logger, string hostedApp, string annotation, string context)
+    public async Task<List<AnnotationResultDto>> AnnotationResult_Async(string hostedApp, string annotation, string context)
     {
         try
         {
@@ -262,7 +262,7 @@ public class GeminiService : IGeminiService
             if (!response.IsSuccessStatusCode)
             {
                 string error = await response.Content.ReadAsStringAsync();
-                logger.Error($"API Error: {response.StatusCode} - {error}");
+                _logger.LogError("API Error: {response.StatusCode}", response.StatusCode);
                 return null;
             }
             string responseJson = await response.Content.ReadAsStringAsync();
@@ -276,7 +276,7 @@ public class GeminiService : IGeminiService
         }
         catch (Exception ex)
         {
-            logger.Error(ex);
+            _logger.LogError(ex.Message);
             return null;
         } 
     }

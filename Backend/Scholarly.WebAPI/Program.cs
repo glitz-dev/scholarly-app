@@ -28,6 +28,9 @@ ConfigurationManager configuration = builder.Configuration;
 var appSettings = configuration.GetSection("Appsetting");
 int sessionTimout = appSettings["SessionTimout"] != null ? Convert.ToInt32(appSettings["SessionTimout"]) : 20;
 
+DotNetEnv.Env.Load();
+var jwtKey = Environment.GetEnvironmentVariable("Scholary_Jwt_SecretKey") ?? throw new Exception("JWT_SECRET not configured");
+
 // Add services to the container.
 builder.Services.Configure<ForwardedHeadersOptions>(options =>
 {
@@ -44,11 +47,13 @@ builder.Services.AddAutoMapper(typeof(Program));
 builder.Services.AddFluentValidationAutoValidation();
 builder.Services.AddValidatorsFromAssemblyContaining<Program>();
 
-builder.Services.AddControllers()
-    .AddNewtonsoftJson(options =>
-    {
-        options.SerializerSettings.ContractResolver = new DefaultContractResolver();
-    });
+//Avoiding AddNewtonsoftJson, using only Text.Json()
+//builder.Services.AddControllers()
+//    .AddNewtonsoftJson(options =>
+//    {
+//        options.SerializerSettings.ContractResolver = new DefaultContractResolver();
+//    });
+builder.Services.AddControllers();
 
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
@@ -81,8 +86,19 @@ builder.Services.AddTransient<IUserDa, UserDa>();
 builder.Services.AddTransient<IGeminiService, GeminiService>();
 builder.Services.AddTransient<IMetadataService, MetadataService>();
 
+// CORS Policy - TODO: Make this more restrictive in production
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("allowAll", policy =>
+    {
+        policy.WithOrigins("https://localhost:3000/")
+            .AllowCredentials()
+            .AllowAnyHeader()
+            .AllowAnyMethod();
+    });
+});
+
 // JWT Authentication - TODO: Move secret to configuration
-var jwtKey = Environment.GetEnvironmentVariable("Jwt_SecretKey") ?? "qk6McRhZFLF9S3OwEuJeCslLWKaqVsDiGQIfuGJKZsI=";
 builder.Services.AddAuthentication(x =>
 {
     x.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
@@ -104,18 +120,6 @@ builder.Services.AddAuthentication(x =>
     };
 });
 
-// CORS Policy - TODO: Make this more restrictive in production
-builder.Services.AddCors(options =>
-{
-    options.AddPolicy("allowAll", policy =>
-    {
-        policy.WithOrigins("https://localhost:3000/")
-            .AllowCredentials()
-            .AllowAnyHeader()
-            .AllowAnyMethod();
-    });
-});
-
 NpgsqlConnection.GlobalTypeMapper.EnableDynamicJson();
 
 // Configure NLog from appsettings.json
@@ -132,7 +136,6 @@ if (loggingSettings != null)
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
 
 // Global Exception Handler Middleware (should be first)
 app.UseMiddleware<GlobalExceptionHandlerMiddleware>();
@@ -147,16 +150,14 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI(/*c => {
       c.SwaggerEndpoint("/swagger/v1/scholarly-swagger.json", "ScholarlyApi");
       c.RoutePrefix=string.Empty;
-    }*/);
+    }*/); 
 }
 
 app.UseForwardedHeaders(new ForwardedHeadersOptions
 {
     ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto
 });
-
-Env.Load();
-
+ 
 app.UseCors("allowAll");
 app.UseStaticFiles();
 

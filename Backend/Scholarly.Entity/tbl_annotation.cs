@@ -3,12 +3,13 @@ using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.Linq;
 using System.Text;
+using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Threading.Tasks;
 
 namespace Scholarly.Entity
 {
-    internal class tbl_annotation
+    public class tbl_annotation
     {
         [Key]
         public long annotation_id { get; set; }
@@ -19,10 +20,10 @@ namespace Scholarly.Entity
         public string? priority_level { get; set; }  // do we need master for  this? 
         public string? highlight_color { get; set; }
         public bool inline { get; set; } = false;
-        public string rect { get; set; } = "{}"; //for canvas position in drawing cases
-        public string position { get; set; } = "{}"; //for positioning annotation in the pdf
+        public required JsonDocument rect { get; set; }  //for canvas position in drawing cases
+        public required JsonDocument position { get; set; }   //for positioning annotation in the pdf
         public int start_index { get; set; } // to pick the highlighted text position in a row
-        public string llm_response { get; set; } = "{}";
+        public JsonDocument? llm_response { get; set; }
         public bool status { get; set; } = true;
         public int created_by { get; set; }
         public DateTime created_date { get; set; }
@@ -31,4 +32,5 @@ namespace Scholarly.Entity
          
 
     }
+
 }

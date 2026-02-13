@@ -77,3 +77,36 @@ ALTER TABLE tbl_pdf_uploads ADD COLUMN IF NOT EXISTS content text;
 =======
 alter table tbl_users add column refresh_token text, add column refresh_token_expiry_time timestamptz
 
+-- 10 Feb 26
+
+CREATE TABLE public.tbl_annotation (
+    annotation_id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+
+    pdf_uploaded_id BIGINT,
+
+    page_no INT NOT NULL,
+    annotated_text TEXT NOT NULL,
+    remarks TEXT NULL,
+
+    priority_level VARCHAR(50) NULL,
+    highlight_color VARCHAR(50) NULL,
+
+    inline BOOLEAN,
+    rect JSONB,
+    position JSONB,
+    start_index INT,
+    llm_response JSONB,
+
+    status BOOLEAN DEFAULT true,
+
+    created_by INT NOT NULL,
+    created_date TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    updated_by INT NULL,
+    updated_date TIMESTAMPTZ NULL,
+
+    CONSTRAINT fk_pdf_uploaded
+        FOREIGN KEY (pdf_uploaded_id)
+        REFERENCES public.tbl_pdf_uploads(pdf_uploaded_id)
+);
+

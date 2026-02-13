@@ -9,6 +9,7 @@ using Scholarly.WebAPI.DTOs.Annotation;
 using Scholarly.WebAPI.Helper;
 using Scholarly.WebAPI.Model;
 using System.Security.Claims;
+using Scholarly.WebAPI.DataAccess;
 using Scholarly.Ai;
 using static Org.BouncyCastle.Math.EC.ECCurve;
 
@@ -28,7 +29,6 @@ namespace Scholarly.WebAPI.Controllers
         private readonly IGeminiService _geminiService;
         private readonly CurrentContext _currentContext;
         private readonly ILogger<AnnotationController> _logger;
-        private static Logger _nLogger = LogManager.GetCurrentClassLogger();
 
         public AnnotationController(
             SWBDBContext swbDBContext,
@@ -151,7 +151,7 @@ namespace Scholarly.WebAPI.Controllers
                 questionId, 
                 _currentContext.UserId);
             
-            return Ok(_annotationDa.DeleteQuestion(_swbDBContext, _nLogger, questionId));
+            return Ok(_annotationDa.DeleteQuestion(_swbDBContext, questionId));
         }
 
         /// <summary>
@@ -179,6 +179,13 @@ namespace Scholarly.WebAPI.Controllers
                     "Annotation Result Processing Started for {annotation}",
                     annotation);
 
+                #region SAVE ANNOTATION
+                var annoationSaveResult= _annotationDa.SaveAnnotation(_swbDBContext, annotation, _currentContext.UserId);
+                if (!annoationSaveResult) {
+                    throw new Exception("Error while Saving annotation");
+                }
+                #endregion
+
                 var result = _swbDBContext.tbl_pdf_uploads.FirstOrDefault(p => p.pdf_uploaded_id == annotation.PdfUploadedID);
                 if (result != null && !string.IsNullOrEmpty(result.content))
                 {
@@ -186,7 +193,6 @@ namespace Scholarly.WebAPI.Controllers
                     var annotationProcessUrl = new Uri(new Uri(aiHostedApp.EndsWith("/") ? aiHostedApp : aiHostedApp + "/"), "get_annotations").ToString();
 
                     List<AnnotationResultDto> annotationResult = await _geminiService.AnnotationResult_Async(
-                            _nLogger,
                             annotationProcessUrl,
                             annotation.AnnotatedText,
                            result.content);
@@ -205,6 +211,21 @@ namespace Scholarly.WebAPI.Controllers
             {
                 _logger.LogError(ex, "Error processing {annotation}", annotation);
                 return StatusCode(500, $"Error processing {annotation}");
+            }
+        }
+        [HttpGet]
+        [Route("getannotationsaginstupload")]
+        public ActionResult<List<AnnotationDto>> GetAnnotationListByUploadId(int uploadId)
+        {
+            try
+            {
+                var result = _annotationDa.GetAllAnnotationsById(_swbDBContext, uploadId);
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error while Processing Annotation List");
+                return StatusCode(500, $"Error while Processing Annotation List");
             }
         }
     }

@@ -1123,7 +1123,7 @@ class HIPAACompliantThesisAnalyzer:
             return []
     
     def _generate_summary_secure(self, text):
-        """Generate summary using local T5 model"""
+        """Generate summary using local T5 model with recursive chunking"""
         try:
             if self.summarizer is None:
                 print("Summarizer not available, using fallback method")
@@ -1133,26 +1133,77 @@ class HIPAACompliantThesisAnalyzer:
             
             clean_text = re.sub(r'\s+', ' ', text).strip()
             
-            # Chunk text for processing
-            max_length = 1000
-            if len(clean_text) > max_length:
-                clean_text = clean_text[:max_length]
+            # 1. Chunking with Overlap
+            # T5-small context matches approx 512 tokens (~2000 chars), but we use 1000 for safety and speed
+            chunk_size = 1000
+            overlap = 200
             
-            summary = self.summarizer(
-                clean_text,
-                max_length=200,
-                min_length=150,
+            # If text is small enough, summarize directly
+            if len(clean_text) <= chunk_size + overlap:
+                 summary = self.summarizer(
+                    clean_text,
+                    max_length=200,
+                    min_length=50,
+                    do_sample=True,
+                    temperature=0.7
+                )
+                 return summary[0]['summary_text']
+
+            # Otherwise, chunk it
+            chunks = []
+            for i in range(0, len(clean_text), chunk_size - overlap):
+                chunks.append(clean_text[i:i + chunk_size])
+            
+            print(f"Summarizing {len(chunks)} text chunks...")
+            
+            # 2. Map (Summarize each chunk)
+            chunk_summaries = []
+            for i, chunk in enumerate(chunks):
+                try:
+                    # Skip very short chunks (e.g. end of file)
+                    if len(chunk) < 100:
+                        continue
+                        
+                    summary_output = self.summarizer(
+                        chunk,
+                        max_length=150,
+                        min_length=30,
+                        do_sample=False, # Faster deterministic generation for chunks
+                        truncation=True
+                    )
+                    chunk_summaries.append(summary_output[0]['summary_text'])
+                except Exception as chunk_error:
+                    print(f"Error summarizing chunk {i}: {chunk_error}")
+                    continue
+
+            if not chunk_summaries:
+                 return "Could not generate summary from text chunks."
+
+            # 3. Reduce (Combine summaries)
+            combined_summary_text = " ".join(chunk_summaries)
+            
+            # 4. Recursive Step
+            # If the combined summary is still too long, recurse
+            # set threshold to ~2000 chars (approx max input for T5)
+            if len(combined_summary_text) > 2000:
+                print(f" Combined summary length {len(combined_summary_text)} is too long, recursing level...")
+                return self._generate_summary_secure(combined_summary_text)
+            
+            # 5. Final Pass
+            final_summary = self.summarizer(
+                combined_summary_text,
+                max_length=300,
+                min_length=100,
                 do_sample=True,
                 temperature=0.7
             )
-            
-            return summary[0]['summary_text']
+            return final_summary[0]['summary_text']
             
         except Exception as e:
             print(f"Error in T5 summarization: {e}")
             # Fallback to extractive summary
             sentences = re.split(r'[.!?]+', text)
-            return " ".join(sentences[:3]) + "..."
+            return " ".join(sentences[:5]) + "..."
     
     def _answer_questions_secure(self, questions, text):
         """Answer questions using local T5 model"""
